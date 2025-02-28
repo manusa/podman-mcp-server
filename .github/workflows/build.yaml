@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - '.gitignore'
+      - 'LICENSE'
+      - '*.md'
+
+concurrency:
+  # Only run once for latest commit per ref and cancel other (previous) runs.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: 1.23
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest #x64
+          - ubuntu-24.04-arm #arm64
+          - windows-latest #x64
+          - macos-13 #x64
+          - macos-latest #arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build
+        run: make build
+      - name: Test
+        run: make test
