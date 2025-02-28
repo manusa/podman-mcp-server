@@ -1,0 +1,41 @@
+{
+  "name": "podman-mcp-server",
+  "version": "0.0.0",
+  "description": "Model Context Protocol (MCP) server for container runtimes (Podman and Docker) ",
+  "main": "./bin/index.js",
+  "bin": {
+    "podman-mcp-server": "bin/index.js"
+  },
+  "optionalDependencies": {
+    "podman-mcp-server-darwin-amd64": "0.0.0",
+    "podman-mcp-server-darwin-arm64": "0.0.0",
+    "podman-mcp-server-linux-amd64": "0.0.0",
+    "podman-mcp-server-linux-arm64": "0.0.0",
+    "podman-mcp-server-windows-amd64": "0.0.0",
+    "podman-mcp-server-windows-arm64": "0.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/manusa/podman-mcp-server.git"
+  },
+  "keywords": [
+    "mcp",
+    "podman",
+    "docker",
+    "containers",
+    "container-runtime",
+    "model context protocol",
+    "model",
+    "context",
+    "protocol"
+  ],
+  "author": {
+    "name": "Marc Nuri",
+    "url": "https://www.marcnuri.com"
+  },
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/manusa/podman-mcp-server/issues"
+  },
+  "homepage": "https://github.com/manusa/podman-mcp-server#readme"
+}
