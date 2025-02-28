@@ -10,12 +10,28 @@ type podmanCli struct {
 	filePath string
 }
 
+// ContainerInspect
+// https://docs.podman.io/en/stable/markdown/podman-inspect.1.html
+func (p *podmanCli) ContainerInspect(name string) (string, error) {
+	return p.exec("inspect", name)
+}
+
+// ContainerList
+// https://docs.podman.io/en/stable/markdown/podman-ps.1.html
 func (p *podmanCli) ContainerList() (string, error) {
 	return p.exec("container", "list", "-a")
 }
 
+// ContainerLogs
+// https://docs.podman.io/en/stable/markdown/podman-logs.1.html
+func (p *podmanCli) ContainerLogs(name string) (string, error) {
+	return p.exec("logs", name)
+}
+
+// ContainerRun
+// https://docs.podman.io/en/stable/markdown/podman-run.1.html
 func (p *podmanCli) ContainerRun(imageName string) (string, error) {
-	args := []string{"run", "--rm", "-d"}
+	args := []string{"run", "--rm", "--publish-all", "-d"}
 	output, err := p.exec(append(args, imageName)...)
 	if err == nil {
 		return output, nil
@@ -29,10 +45,14 @@ func (p *podmanCli) ContainerRun(imageName string) (string, error) {
 	return "", err
 }
 
+// ContainerStop
+// https://docs.podman.io/en/stable/markdown/podman-stop.1.html
 func (p *podmanCli) ContainerStop(name string) (string, error) {
 	return p.exec("container", "stop", name)
 }
 
+// ImagePull
+// https://docs.podman.io/en/stable/markdown/podman-pull.1.html
 func (p *podmanCli) ImagePull(imageName string) (string, error) {
 	output, err := p.exec("pull", imageName)
 	if err == nil {
