@@ -2,10 +2,15 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path"
+	"runtime"
 	"testing"
 )
 
@@ -50,8 +55,27 @@ func (c *mcpContext) afterEach() {
 }
 
 func testCase(t *testing.T, test func(c *mcpContext)) {
+	withPodmanBinary(t)
 	mcpCtx := &mcpContext{}
 	mcpCtx.beforeEach(t)
 	defer mcpCtx.afterEach()
 	test(mcpCtx)
+}
+
+func withPodmanBinary(t *testing.T) {
+	binDir := t.TempDir()
+	binary := "podman"
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+	output, err := exec.
+		Command("go", "build", "-o", path.Join(binDir, binary),
+			path.Join("..", "..", "testdata", "podman", "main.go")).
+		CombinedOutput()
+	if err != nil {
+		panic(fmt.Errorf("failed to generate podman binary: %w, output: %s", err, string(output)))
+	}
+	if os.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+binDir) != nil {
+		panic("failed to set PATH")
+	}
 }
