@@ -15,11 +15,12 @@ import (
 )
 
 type mcpContext struct {
-	ctx           context.Context
-	cancel        context.CancelFunc
-	mcpServer     *Server
-	mcpHttpServer *httptest.Server
-	mcpClient     *client.SSEMCPClient
+	podmanBinaryDir string
+	ctx             context.Context
+	cancel          context.CancelFunc
+	mcpServer       *Server
+	mcpHttpServer   *httptest.Server
+	mcpClient       *client.SSEMCPClient
 }
 
 func (c *mcpContext) beforeEach(t *testing.T) {
@@ -55,14 +56,23 @@ func (c *mcpContext) afterEach() {
 }
 
 func testCase(t *testing.T, test func(c *mcpContext)) {
-	withPodmanBinary(t)
-	mcpCtx := &mcpContext{}
+	mcpCtx := &mcpContext{
+		podmanBinaryDir: withPodmanBinary(t),
+	}
 	mcpCtx.beforeEach(t)
 	defer mcpCtx.afterEach()
 	test(mcpCtx)
 }
 
-func withPodmanBinary(t *testing.T) {
+// callTool helper function to call a tool by name with arguments
+func (c *mcpContext) callTool(name string, args map[string]interface{}) (*mcp.CallToolResult, error) {
+	callToolRequest := mcp.CallToolRequest{}
+	callToolRequest.Params.Name = name
+	callToolRequest.Params.Arguments = args
+	return c.mcpClient.CallTool(c.ctx, callToolRequest)
+}
+
+func withPodmanBinary(t *testing.T) string {
 	binDir := t.TempDir()
 	binary := "podman"
 	if runtime.GOOS == "windows" {
@@ -75,7 +85,8 @@ func withPodmanBinary(t *testing.T) {
 	if err != nil {
 		panic(fmt.Errorf("failed to generate podman binary: %w, output: %s", err, string(output)))
 	}
-	if os.Setenv("PATH", os.Getenv("PATH")+string(os.PathListSeparator)+binDir) != nil {
+	if os.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH")) != nil {
 		panic("failed to set PATH")
 	}
+	return binDir
 }
