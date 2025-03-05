@@ -57,12 +57,12 @@ func (p *podmanCli) ContainerStop(name string) (string, error) {
 func (p *podmanCli) ImagePull(imageName string) (string, error) {
 	output, err := p.exec("pull", imageName)
 	if err == nil {
-		return fmt.Sprintf("%s pulled successfully", imageName), nil
+		return fmt.Sprintf("%s\n%s pulled successfully", output, imageName), nil
 	}
 	if strings.Contains(output, "Error: short-name") {
 		imageName = "docker.io/" + imageName
 		if output, err = p.exec("pull", imageName); err == nil {
-			return fmt.Sprintf("%s pulled successfully", imageName), nil
+			return fmt.Sprintf("%s\n%s pulled successfully", output, imageName), nil
 		}
 	}
 	return "", err
