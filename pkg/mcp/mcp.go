@@ -42,7 +42,7 @@ func NewTextResult(content string, err error) *mcp.CallToolResult {
 	if err != nil {
 		return &mcp.CallToolResult{
 			IsError: true,
-			Content: []interface{}{
+			Content: []mcp.Content{
 				mcp.TextContent{
 					Type: "text",
 					Text: err.Error(),
@@ -51,7 +51,7 @@ func NewTextResult(content string, err error) *mcp.CallToolResult {
 		}
 	}
 	return &mcp.CallToolResult{
-		Content: []interface{}{
+		Content: []mcp.Content{
 			mcp.TextContent{
 				Type: "text",
 				Text: content,

@@ -3,7 +3,7 @@ module github.com/manusa/podman-mcp-server
 go 1.23.5
 
 require (
-	github.com/mark3labs/mcp-go v0.8.5
+	github.com/mark3labs/mcp-go v0.11.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.19.0
 	golang.org/x/net v0.35.0
