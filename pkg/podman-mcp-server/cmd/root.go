@@ -36,7 +36,7 @@ Podman Model Context Protocol (MCP) server
 
 		var sseServer *server.SSEServer
 		if ssePort := viper.GetInt("sse"); ssePort > 0 {
-			sseServer = mcpServer.ServeSse(ssePort)
+			sseServer = mcpServer.ServeSse(viper.GetString("sse-public-host"), ssePort)
 			if err := sseServer.Start(fmt.Sprintf(":%d", ssePort)); err != nil {
 				panic(err)
 			}
@@ -52,7 +52,8 @@ Podman Model Context Protocol (MCP) server
 
 func init() {
 	rootCmd.Flags().BoolP("version", "v", false, "Print version information and quit")
-	rootCmd.Flags().IntP("sse", "", 0, "Start a SSE server on the specified port")
+	rootCmd.Flags().IntP("sse-port", "", 0, "Start a SSE server on the specified port")
+	rootCmd.Flags().StringP("sse-public-host", "", "localhost", "SSE Public host to use in the server")
 	_ = viper.BindPFlags(rootCmd.Flags())
 }
 
