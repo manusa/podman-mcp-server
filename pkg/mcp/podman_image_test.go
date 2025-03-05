@@ -19,7 +19,7 @@ func TestContainerImagePull(t *testing.T) {
 				t.Fatalf("call tool failed")
 				return
 			}
-			if toolResult.Content[0].(mcp.TextContent).Text != "example.com/org/image:tag pulled successfully" {
+			if toolResult.Content[0].(mcp.TextContent).Text != "\nexample.com/org/image:tag pulled successfully" {
 				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 				return
 			}
