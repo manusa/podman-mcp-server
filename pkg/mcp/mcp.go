@@ -20,6 +20,7 @@ func NewSever() (*Server, error) {
 			version.Version,
 			server.WithResourceCapabilities(true, true),
 			server.WithPromptCapabilities(true),
+			server.WithToolCapabilities(true),
 			server.WithLogging(),
 		),
 	}

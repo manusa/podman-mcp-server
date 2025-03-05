@@ -1,6 +1,9 @@
 package mcp
 
-import "testing"
+import (
+	"github.com/mark3labs/mcp-go/mcp"
+	"testing"
+)
 
 func TestContainerImagePull(t *testing.T) {
 	testCase(t, func(c *mcpContext) {
@@ -16,8 +19,8 @@ func TestContainerImagePull(t *testing.T) {
 				t.Fatalf("call tool failed")
 				return
 			}
-			if toolResult.Content[0].(map[string]interface{})["text"].(string) != "" {
-				t.Fatalf("unexpected content")
+			if toolResult.Content[0].(mcp.TextContent).Text != "example.com/org/image:tag pulled successfully" {
+				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 				return
 			}
 		})
