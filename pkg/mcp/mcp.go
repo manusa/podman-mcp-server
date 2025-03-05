@@ -6,6 +6,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"slices"
+	"strconv"
 )
 
 type Server struct {
@@ -37,6 +38,10 @@ func NewSever() (*Server, error) {
 
 func (s *Server) ServeStdio() error {
 	return server.ServeStdio(s.server)
+}
+
+func (s *Server) ServeSse(port int) *server.SSEServer {
+	return server.NewSSEServer(s.server, "http://localhost:"+strconv.Itoa(port))
 }
 
 func NewTextResult(content string, err error) *mcp.CallToolResult {
