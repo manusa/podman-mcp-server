@@ -35,7 +35,7 @@ Podman Model Context Protocol (MCP) server
 		}
 
 		var sseServer *server.SSEServer
-		if ssePort := viper.GetInt("sse"); ssePort > 0 {
+		if ssePort := viper.GetInt("sse-port"); ssePort > 0 {
 			sseServer = mcpServer.ServeSse(viper.GetString("sse-public-host"), ssePort)
 			if err := sseServer.Start(fmt.Sprintf(":%d", ssePort)); err != nil {
 				panic(err)
