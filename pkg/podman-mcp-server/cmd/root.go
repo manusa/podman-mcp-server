@@ -23,6 +23,15 @@ Podman Model Context Protocol (MCP) server
   # shows version information
   podman-mcp-server --version
 
+  # start STDIO server
+  podman-mcp-server
+
+  # start a SSE server on port 8080
+  podman-mcp-server --sse-port 8080
+
+  # start a SSE server on port 8080 with a public host of example.com
+  podman-mcp-server --sse-port 8080 --sse-public-host example.com
+
   # TODO: add more examples`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if viper.GetBool("version") {
