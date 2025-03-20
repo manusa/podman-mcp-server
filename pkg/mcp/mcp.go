@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"fmt"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/manusa/podman-mcp-server/pkg/version"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -40,8 +39,12 @@ func (s *Server) ServeStdio() error {
 	return server.ServeStdio(s.server)
 }
 
-func (s *Server) ServeSse(publicHost string, port int) *server.SSEServer {
-	return server.NewSSEServer(s.server, server.WithBaseURL(fmt.Sprintf("http://%s:%d", publicHost, port)))
+func (s *Server) ServeSse(baseUrl string) *server.SSEServer {
+	options := make([]server.SSEOption, 0)
+	if baseUrl != "" {
+		options = append(options, server.WithBaseURL(baseUrl))
+	}
+	return server.NewSSEServer(s.server, options...)
 }
 
 func NewTextResult(content string, err error) *mcp.CallToolResult {
