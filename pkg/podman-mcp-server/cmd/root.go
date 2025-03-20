@@ -29,7 +29,7 @@ Podman Model Context Protocol (MCP) server
   # start a SSE server on port 8080
   podman-mcp-server --sse-port 8080
 
-  # start a SSE server on port 8080 with a public HTTPS host of example.com
+  # start a SSE server on port 8443 with a public HTTPS host of example.com
   podman-mcp-server --sse-port 8443 --sse-base-url https://example.com:8443
 
   # TODO: add more examples`,
