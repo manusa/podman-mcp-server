@@ -41,7 +41,7 @@ func (s *Server) ServeStdio() error {
 }
 
 func (s *Server) ServeSse(publicHost string, port int) *server.SSEServer {
-	return server.NewSSEServer(s.server, fmt.Sprintf("http://%s:%d", publicHost, port))
+	return server.NewSSEServer(s.server, server.WithBaseURL(fmt.Sprintf("http://%s:%d", publicHost, port)))
 }
 
 func NewTextResult(content string, err error) *mcp.CallToolResult {
