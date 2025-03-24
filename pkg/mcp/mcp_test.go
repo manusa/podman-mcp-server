@@ -12,7 +12,8 @@ func TestTools(t *testing.T) {
 		"container_logs",
 		"container_run",
 		"container_stop",
-		"container_image_pull",
+		"image_list",
+		"image_pull",
 	}
 	testCase(t, func(c *mcpContext) {
 		tools, err := c.mcpClient.ListTools(c.ctx, mcp.ListToolsRequest{})

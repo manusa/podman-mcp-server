@@ -52,6 +52,12 @@ func (p *podmanCli) ContainerStop(name string) (string, error) {
 	return p.exec("container", "stop", name)
 }
 
+// ImageList
+// https://docs.podman.io/en/stable/markdown/podman-images.1.html
+func (p *podmanCli) ImageList() (string, error) {
+	return p.exec("images", "--digests")
+}
+
 // ImagePull
 // https://docs.podman.io/en/stable/markdown/podman-pull.1.html
 func (p *podmanCli) ImagePull(imageName string) (string, error) {

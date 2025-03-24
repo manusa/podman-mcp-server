@@ -72,6 +72,16 @@ func (c *mcpContext) callTool(name string, args map[string]interface{}) (*mcp.Ca
 	return c.mcpClient.CallTool(c.ctx, callToolRequest)
 }
 
+func (c *mcpContext) withPodmanOutput(outputLines ...string) {
+	if len(outputLines) > 0 {
+		f, _ := os.Create(path.Join(c.podmanBinaryDir, "output.txt"))
+		defer f.Close()
+		for _, line := range outputLines {
+			_, _ = f.WriteString(line + "\n")
+		}
+	}
+}
+
 func withPodmanBinary(t *testing.T) string {
 	binDir := t.TempDir()
 	binary := "podman"

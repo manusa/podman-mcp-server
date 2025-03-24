@@ -8,6 +8,8 @@ type Podman interface {
 	ContainerList() (string, error)
 	// ContainerLogs Display the logs of a container
 	ContainerLogs(name string) (string, error)
+	// ImageList list the container images on the system
+	ImageList() (string, error)
 	// ImagePull pulls an image from a registry
 	ImagePull(imageName string) (string, error)
 	// ContainerRun pulls an image from a registry
