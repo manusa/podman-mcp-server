@@ -31,8 +31,15 @@ func (p *podmanCli) ContainerLogs(name string) (string, error) {
 
 // ContainerRun
 // https://docs.podman.io/en/stable/markdown/podman-run.1.html
-func (p *podmanCli) ContainerRun(imageName string) (string, error) {
-	args := []string{"run", "--rm", "--publish-all", "-d"}
+func (p *podmanCli) ContainerRun(imageName string, portMappings map[int]int) (string, error) {
+	args := []string{"run", "--rm", "-d"}
+	if len(portMappings) > 0 {
+		for hostPort, containerPort := range portMappings {
+			args = append(args, fmt.Sprintf("--publish=%d:%d", hostPort, containerPort))
+		}
+	} else {
+		args = append(args, "--publish-all")
+	}
 	output, err := p.exec(append(args, imageName)...)
 	if err == nil {
 		return output, nil

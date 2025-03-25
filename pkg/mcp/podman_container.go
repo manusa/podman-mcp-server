@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"strconv"
+	"strings"
 )
 
 func (s *Server) initPodmanContainer() []server.ServerTool {
@@ -22,6 +24,19 @@ func (s *Server) initPodmanContainer() []server.ServerTool {
 		{mcp.NewTool("container_run",
 			mcp.WithDescription("Runs a Docker or Podman container with the specified image name"),
 			mcp.WithString("imageName", mcp.Description("Docker or Podman container image name to pull"), mcp.Required()),
+			mcp.WithArray("ports", mcp.Description("Port mappings to expose on the host. "+
+				"Format: <hostPort>:<containerPort>. "+
+				"Example: 8080:80. "+
+				"(Optional, add only to expose ports)"),
+				// TODO: manual fix to ensure that the items property gets initialized (Gemini)
+				// https://www.googlecloudcommunity.com/gc/AI-ML/Gemini-API-400-Bad-Request-Array-fields-breaks-function-calling/m-p/769835?nobounce
+				func(schema map[string]interface{}) {
+					schema["type"] = "array"
+					schema["items"] = map[string]interface{}{
+						"type": "string",
+					}
+				},
+			),
 		), s.containerRun},
 		{mcp.NewTool("container_stop",
 			mcp.WithDescription("Stops a Docker or Podman running container with the specified container ID or name"),
@@ -43,7 +58,21 @@ func (s *Server) containerLogs(_ context.Context, ctr mcp.CallToolRequest) (*mcp
 }
 
 func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerRun(ctr.Params.Arguments["imageName"].(string))), nil
+	ports := ctr.Params.Arguments["ports"]
+	portMappings := make(map[int]int)
+	if _, ok := ports.([]interface{}); ok {
+		for _, port := range ports.([]interface{}) {
+			if _, ok := port.(string); !ok {
+				continue
+			}
+			hostPort, _ := strconv.Atoi(strings.Split(port.(string), ":")[0])
+			containerPort, _ := strconv.Atoi(strings.Split(port.(string), ":")[1])
+			if hostPort > 0 && containerPort > 0 {
+				portMappings[hostPort] = containerPort
+			}
+		}
+	}
+	return NewTextResult(s.podman.ContainerRun(ctr.Params.Arguments["imageName"].(string), portMappings)), nil
 }
 
 func (s *Server) containerStop(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
