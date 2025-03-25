@@ -6,6 +6,27 @@ import (
 	"testing"
 )
 
+func TestContainerRemove(t *testing.T) {
+	testCase(t, func(c *mcpContext) {
+		toolResult, err := c.callTool("container_remove", map[string]interface{}{
+			"name": "example-container",
+		})
+		t.Run("container_remove returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+		})
+		t.Run("container_remove removes provided container", func(t *testing.T) {
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman container rm example-container") {
+				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+	})
+}
+
 func TestContainerRun(t *testing.T) {
 	testCase(t, func(c *mcpContext) {
 		toolResult, err := c.callTool("container_run", map[string]interface{}{
@@ -36,7 +57,8 @@ func TestContainerRun(t *testing.T) {
 		})
 		toolResult, err = c.callTool("container_run", map[string]interface{}{
 			"imageName": "example.com/org/image:tag",
-			"ports": []string{
+			"ports": []interface{}{
+				1337, // Invalid entry to test
 				"8080:80",
 				"8082:8082",
 				"8443:443",

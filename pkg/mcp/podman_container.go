@@ -21,6 +21,10 @@ func (s *Server) initPodmanContainer() []server.ServerTool {
 			mcp.WithDescription("Displays the logs of a Docker or Podman container with the specified container ID or name"),
 			mcp.WithString("name", mcp.Description("Docker or Podman container ID or name to displays the logs"), mcp.Required()),
 		), s.containerLogs},
+		{mcp.NewTool("container_remove",
+			mcp.WithDescription("Removes a Docker or Podman container with the specified container ID or name (rm)"),
+			mcp.WithString("name", mcp.Description("Docker or Podman container ID or name to remove"), mcp.Required()),
+		), s.containerRemove},
 		{mcp.NewTool("container_run",
 			mcp.WithDescription("Runs a Docker or Podman container with the specified image name"),
 			mcp.WithString("imageName", mcp.Description("Docker or Podman container image name to pull"), mcp.Required()),
@@ -55,6 +59,10 @@ func (s *Server) containerList(_ context.Context, _ mcp.CallToolRequest) (*mcp.C
 
 func (s *Server) containerLogs(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return NewTextResult(s.podman.ContainerLogs(ctr.Params.Arguments["name"].(string))), nil
+}
+
+func (s *Server) containerRemove(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return NewTextResult(s.podman.ContainerRemove(ctr.Params.Arguments["name"].(string))), nil
 }
 
 func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {

@@ -29,6 +29,12 @@ func (p *podmanCli) ContainerLogs(name string) (string, error) {
 	return p.exec("logs", name)
 }
 
+// ContainerRemove
+// https://docs.podman.io/en/stable/markdown/podman-rm.1.html
+func (p *podmanCli) ContainerRemove(name string) (string, error) {
+	return p.exec("container", "rm", name)
+}
+
 // ContainerRun
 // https://docs.podman.io/en/stable/markdown/podman-run.1.html
 func (p *podmanCli) ContainerRun(imageName string, portMappings map[int]int) (string, error) {

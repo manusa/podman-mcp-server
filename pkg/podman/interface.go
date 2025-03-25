@@ -12,6 +12,8 @@ type Podman interface {
 	ImageList() (string, error)
 	// ImagePull pulls an image from a registry
 	ImagePull(imageName string) (string, error)
+	// ContainerRemove removes a container
+	ContainerRemove(name string) (string, error)
 	// ContainerRun pulls an image from a registry
 	ContainerRun(imageName string, portMappings map[int]int) (string, error)
 	// ContainerStop stops a running container using the ID or name

@@ -10,6 +10,7 @@ func TestTools(t *testing.T) {
 		"container_inspect",
 		"container_list",
 		"container_logs",
+		"container_remove",
 		"container_run",
 		"container_stop",
 		"image_list",
@@ -20,7 +21,6 @@ func TestTools(t *testing.T) {
 		t.Run("ListTools returns tools", func(t *testing.T) {
 			if err != nil {
 				t.Fatalf("call ListTools failed %v", err)
-				return
 			}
 		})
 		nameSet := make(map[string]bool)
@@ -30,8 +30,7 @@ func TestTools(t *testing.T) {
 		for _, name := range expectedNames {
 			t.Run("ListTools has "+name+" tool", func(t *testing.T) {
 				if nameSet[name] != true {
-					t.Fatalf("tool %s not found", name)
-					return
+					t.Errorf("tool %s not found", name)
 				}
 			})
 		}
