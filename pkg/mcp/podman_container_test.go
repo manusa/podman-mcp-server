@@ -85,3 +85,24 @@ func TestContainerRun(t *testing.T) {
 		})
 	})
 }
+
+func TestContainerStop(t *testing.T) {
+	testCase(t, func(c *mcpContext) {
+		toolResult, err := c.callTool("container_stop", map[string]interface{}{
+			"name": "example-container",
+		})
+		t.Run("container_stop returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+		})
+		t.Run("container_stop stops provided container", func(t *testing.T) {
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman container stop example-container") {
+				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+	})
+}
