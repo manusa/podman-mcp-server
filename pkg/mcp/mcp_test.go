@@ -17,6 +17,7 @@ func TestTools(t *testing.T) {
 		"image_pull",
 		"image_push",
 		"image_remove",
+		"network_list",
 		"volume_list",
 	}
 	testCase(t, func(c *mcpContext) {

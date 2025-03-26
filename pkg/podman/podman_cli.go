@@ -103,6 +103,12 @@ func (p *podmanCli) ImageRemove(imageName string) (string, error) {
 	return p.exec("image", "rm", imageName)
 }
 
+// NetworkList
+// https://docs.podman.io/en/stable/markdown/podman-network-ls.1.html
+func (p *podmanCli) NetworkList() (string, error) {
+	return p.exec("network", "ls")
+}
+
 // VolumeList
 // https://docs.podman.io/en/stable/markdown/podman-volume-ls.1.html
 func (p *podmanCli) VolumeList() (string, error) {
