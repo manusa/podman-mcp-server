@@ -75,7 +75,7 @@ func (p *podmanCli) ImageBuild(containerFile string, imageName string) (string, 
 	if imageName != "" {
 		args = append(args, "-t", imageName)
 	}
-	return p.exec(append(args, containerFile)...)
+	return p.exec(append(args, "-f", containerFile)...)
 }
 
 // ImageList

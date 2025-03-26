@@ -10,7 +10,7 @@ func (s *Server) initPodmanImage() []server.ServerTool {
 	return []server.ServerTool{
 		{mcp.NewTool("image_build",
 			mcp.WithDescription("Build a Docker or Podman image from a Dockerfile, Podmanfile, or Containerfile"),
-			mcp.WithString("containerFile", mcp.Description("The path to the Dockerfile, Podmanfile, or Containerfile to build the image from"), mcp.Required()),
+			mcp.WithString("containerFile", mcp.Description("The absolute path to the Dockerfile, Podmanfile, or Containerfile to build the image from"), mcp.Required()),
 			mcp.WithString("imageName", mcp.Description("Specifies the name which is assigned to the resulting image if the build process completes successfully (--tag, -t)")),
 		), s.imageBuild},
 		{mcp.NewTool("image_list",

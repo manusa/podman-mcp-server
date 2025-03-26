@@ -18,7 +18,7 @@ func TestImageBuild(t *testing.T) {
 			if toolResult.IsError {
 				t.Fatalf("call tool failed")
 			}
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman build /tmp/Containerfile") {
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman build -f /tmp/Containerfile") {
 				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
@@ -33,7 +33,7 @@ func TestImageBuild(t *testing.T) {
 			if toolResult.IsError {
 				t.Fatalf("call tool failed")
 			}
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman build -t example.com/org/image:tag /tmp/Containerfile") {
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman build -t example.com/org/image:tag -f /tmp/Containerfile") {
 				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
