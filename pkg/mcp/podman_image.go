@@ -19,6 +19,10 @@ func (s *Server) initPodmanImage() []server.ServerTool {
 			mcp.WithDescription("Pushes a Docker or Podman container image, manifest list or image index from local machine storage to a registry"),
 			mcp.WithString("imageName", mcp.Description("Docker or Podman container image name to push"), mcp.Required()),
 		), s.containerImagePush},
+		{mcp.NewTool("image_remove",
+			mcp.WithDescription("Removes a Docker or Podman image from the local machine storage"),
+			mcp.WithString("imageName", mcp.Description("Docker or Podman container image name to remove"), mcp.Required()),
+		), s.containerImageRemove},
 	}
 }
 
@@ -32,4 +36,8 @@ func (s *Server) containerImagePull(_ context.Context, ctr mcp.CallToolRequest) 
 
 func (s *Server) containerImagePush(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	return NewTextResult(s.podman.ImagePush(ctr.Params.Arguments["imageName"].(string))), nil
+}
+
+func (s *Server) containerImageRemove(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	return NewTextResult(s.podman.ImageRemove(ctr.Params.Arguments["imageName"].(string))), nil
 }

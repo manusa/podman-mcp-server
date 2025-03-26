@@ -73,3 +73,22 @@ func TestImagePush(t *testing.T) {
 		})
 	})
 }
+
+func TestImageRemove(t *testing.T) {
+	testCase(t, func(c *mcpContext) {
+		toolResult, err := c.callTool("image_remove", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+		})
+		t.Run("image_remove returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman image rm example.com/org/image:tag") {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+	})
+}

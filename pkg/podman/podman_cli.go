@@ -97,6 +97,12 @@ func (p *podmanCli) ImagePush(imageName string) (string, error) {
 	return "", err
 }
 
+// ImageRemove
+// https://docs.podman.io/en/stable/markdown/podman-rmi.1.html
+func (p *podmanCli) ImageRemove(imageName string) (string, error) {
+	return p.exec("image", "rm", imageName)
+}
+
 func (p *podmanCli) exec(args ...string) (string, error) {
 	output, err := exec.Command(p.filePath, args...).CombinedOutput()
 	return string(output), err
