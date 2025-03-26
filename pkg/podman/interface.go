@@ -14,6 +14,8 @@ type Podman interface {
 	ContainerRun(imageName string, portMappings map[int]int, envVariables []string) (string, error)
 	// ContainerStop stops a running container using the ID or name
 	ContainerStop(name string) (string, error)
+	// ImageBuild builds an image from a Dockerfile, Podmanfile, or Containerfile
+	ImageBuild(containerFile string, imageName string) (string, error)
 	// ImageList list the container images on the system
 	ImageList() (string, error)
 	// ImagePull pulls an image from a registry

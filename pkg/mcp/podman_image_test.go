@@ -2,9 +2,53 @@ package mcp
 
 import (
 	"github.com/mark3labs/mcp-go/mcp"
+	"os"
+	"path"
 	"strings"
 	"testing"
 )
+
+func TestImageBuild(t *testing.T) {
+	testCase(t, func(c *mcpContext) {
+		toolResult, err := c.callTool("image_build", map[string]interface{}{
+			"containerFileContent": "FROM scratch\nRUN echo hello",
+		})
+		t.Run("image_build returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman build ") {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, path.Join(os.TempDir(), "Containerfile")) {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+		toolResult, err = c.callTool("image_build", map[string]interface{}{
+			"containerFileContent": "FROM scratch\nRUN echo hello",
+			"imageName":            "example.com/org/image:tag",
+		})
+		t.Run("image_build with imageName returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman build -t example.com/org/image:tag") {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, path.Join(os.TempDir(), "Containerfile")) {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+	})
+}
 
 func TestImageList(t *testing.T) {
 	testCase(t, func(c *mcpContext) {

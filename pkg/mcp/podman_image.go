@@ -8,6 +8,11 @@ import (
 
 func (s *Server) initPodmanImage() []server.ServerTool {
 	return []server.ServerTool{
+		{mcp.NewTool("image_build",
+			mcp.WithDescription("Build a Docker or Podman image from a Dockerfile, Podmanfile, or Containerfile"),
+			mcp.WithString("containerFileContent", mcp.Description("Dockerfile, Podmanfile, or Containerfile file content"), mcp.Required()),
+			mcp.WithString("imageName", mcp.Description("Specifies the name which is assigned to the resulting image if the build process completes successfully (--tag, -t)")),
+		), s.imageBuild},
 		{mcp.NewTool("image_list",
 			mcp.WithDescription("List the Docker or Podman images on the local machine"),
 		), s.imageList},
@@ -24,6 +29,14 @@ func (s *Server) initPodmanImage() []server.ServerTool {
 			mcp.WithString("imageName", mcp.Description("Docker or Podman container image name to remove"), mcp.Required()),
 		), s.imageRemove},
 	}
+}
+
+func (s *Server) imageBuild(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	imageName := ctr.Params.Arguments["imageName"]
+	if _, ok := imageName.(string); !ok {
+		imageName = ""
+	}
+	return NewTextResult(s.podman.ImageBuild(ctr.Params.Arguments["containerFileContent"].(string), imageName.(string))), nil
 }
 
 func (s *Server) imageList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {

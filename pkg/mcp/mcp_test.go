@@ -13,6 +13,7 @@ func TestTools(t *testing.T) {
 		"container_remove",
 		"container_run",
 		"container_stop",
+		"image_build",
 		"image_list",
 		"image_pull",
 		"image_push",
