@@ -97,7 +97,7 @@ func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.
 	envVariables := make([]string, 0)
 	if _, ok := environment.([]interface{}); ok && len(environment.([]interface{})) > 0 {
 		for _, env := range environment.([]interface{}) {
-			if _, ok := env.(string); !ok {
+			if _, ok = env.(string); !ok {
 				continue
 			}
 			envVariables = append(envVariables, env.(string))
