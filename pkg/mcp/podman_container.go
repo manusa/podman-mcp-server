@@ -41,6 +41,19 @@ func (s *Server) initPodmanContainer() []server.ServerTool {
 					}
 				},
 			),
+			mcp.WithArray("environment", mcp.Description("Environment variables to set in the container. "+
+				"Format: <key>=<value>. "+
+				"Example: FOO=bar. "+
+				"(Optional, add only to set environment variables)"),
+				// TODO: manual fix to ensure that the items property gets initialized (Gemini)
+				// https://www.googlecloudcommunity.com/gc/AI-ML/Gemini-API-400-Bad-Request-Array-fields-breaks-function-calling/m-p/769835?nobounce
+				func(schema map[string]interface{}) {
+					schema["type"] = "array"
+					schema["items"] = map[string]interface{}{
+						"type": "string",
+					}
+				},
+			),
 		), s.containerRun},
 		{mcp.NewTool("container_stop",
 			mcp.WithDescription("Stops a Docker or Podman running container with the specified container ID or name"),
@@ -80,7 +93,17 @@ func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.
 			}
 		}
 	}
-	return NewTextResult(s.podman.ContainerRun(ctr.Params.Arguments["imageName"].(string), portMappings)), nil
+	environment := ctr.Params.Arguments["environment"]
+	envVariables := make([]string, 0)
+	if _, ok := environment.([]interface{}); ok && len(environment.([]interface{})) > 0 {
+		for _, env := range environment.([]interface{}) {
+			if _, ok := env.(string); !ok {
+				continue
+			}
+			envVariables = append(envVariables, env.(string))
+		}
+	}
+	return NewTextResult(s.podman.ContainerRun(ctr.Params.Arguments["imageName"].(string), portMappings, envVariables)), nil
 }
 
 func (s *Server) containerStop(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {

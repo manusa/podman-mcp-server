@@ -142,6 +142,30 @@ func TestContainerRun(t *testing.T) {
 				t.Fatalf("expected port --publish=8443:443, got %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
+		toolResult, err = c.callTool("container_run", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+			"ports":     []interface{}{"8080:80"},
+			"environment": []interface{}{
+				"KEY=VALUE",
+				"FOO=BAR",
+			},
+		})
+		t.Run("container_run with environment returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+		})
+		t.Run("container_run with environment sets provided environment variables", func(t *testing.T) {
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --env KEY=VALUE ") {
+				t.Fatalf("expected env --env KEY=VALUE, got %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --env FOO=BAR ") {
+				t.Fatalf("expected env --env FOO=BAR, got %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
 	})
 }
 

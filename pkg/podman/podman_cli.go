@@ -37,7 +37,7 @@ func (p *podmanCli) ContainerRemove(name string) (string, error) {
 
 // ContainerRun
 // https://docs.podman.io/en/stable/markdown/podman-run.1.html
-func (p *podmanCli) ContainerRun(imageName string, portMappings map[int]int) (string, error) {
+func (p *podmanCli) ContainerRun(imageName string, portMappings map[int]int, envVariables []string) (string, error) {
 	args := []string{"run", "--rm", "-d"}
 	if len(portMappings) > 0 {
 		for hostPort, containerPort := range portMappings {
@@ -45,6 +45,9 @@ func (p *podmanCli) ContainerRun(imageName string, portMappings map[int]int) (st
 		}
 	} else {
 		args = append(args, "--publish-all")
+	}
+	for _, env := range envVariables {
+		args = append(args, "--env", env)
 	}
 	output, err := p.exec(append(args, imageName)...)
 	if err == nil {

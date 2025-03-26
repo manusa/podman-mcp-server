@@ -11,7 +11,7 @@ type Podman interface {
 	// ContainerRemove removes a container
 	ContainerRemove(name string) (string, error)
 	// ContainerRun pulls an image from a registry
-	ContainerRun(imageName string, portMappings map[int]int) (string, error)
+	ContainerRun(imageName string, portMappings map[int]int, envVariables []string) (string, error)
 	// ContainerStop stops a running container using the ID or name
 	ContainerStop(name string) (string, error)
 	// ImageList list the container images on the system
