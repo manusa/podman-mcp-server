@@ -3,7 +3,6 @@ package podman
 import (
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 )
@@ -72,19 +71,11 @@ func (p *podmanCli) ContainerStop(name string) (string, error) {
 // ImageBuild
 // https://docs.podman.io/en/stable/markdown/podman-build.1.html
 func (p *podmanCli) ImageBuild(containerFile string, imageName string) (string, error) {
-	f, err := os.CreateTemp("", "Containerfile")
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(f.Name())
-	if _, err = f.WriteString(containerFile); err != nil {
-		return "", err
-	}
 	args := []string{"build"}
 	if imageName != "" {
 		args = append(args, "-t", imageName)
 	}
-	return p.exec(append(args, f.Name())...)
+	return p.exec(append(args, containerFile)...)
 }
 
 // ImageList
