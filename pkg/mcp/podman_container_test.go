@@ -6,6 +6,27 @@ import (
 	"testing"
 )
 
+func TestContainerInspect(t *testing.T) {
+	testCase(t, func(c *mcpContext) {
+		toolResult, err := c.callTool("container_inspect", map[string]interface{}{
+			"name": "example-container",
+		})
+		t.Run("container_inspect returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+		})
+		t.Run("container_inspect inspects provided container", func(t *testing.T) {
+			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman inspect example-container") {
+				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+	})
+}
+
 func TestContainerList(t *testing.T) {
 	testCase(t, func(c *mcpContext) {
 		toolResult, err := c.callTool("container_list", map[string]interface{}{})
