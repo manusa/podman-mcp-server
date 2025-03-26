@@ -20,7 +20,7 @@ func TestContainerInspect(t *testing.T) {
 			}
 		})
 		t.Run("container_inspect inspects provided container", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman inspect example-container") {
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman inspect example-container") {
 				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
@@ -58,7 +58,7 @@ func TestContainerLogs(t *testing.T) {
 			}
 		})
 		t.Run("container_logs retrieves logs from provided container", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman logs example-container") {
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman logs example-container") {
 				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
@@ -79,7 +79,7 @@ func TestContainerRemove(t *testing.T) {
 			}
 		})
 		t.Run("container_remove removes provided container", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman container rm example-container") {
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman container rm example-container") {
 				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
@@ -159,7 +159,7 @@ func TestContainerStop(t *testing.T) {
 			}
 		})
 		t.Run("container_stop stops provided container", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, "podman container stop example-container") {
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman container stop example-container") {
 				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})

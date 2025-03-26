@@ -12,6 +12,8 @@ type Podman interface {
 	ImageList() (string, error)
 	// ImagePull pulls an image from a registry
 	ImagePull(imageName string) (string, error)
+	// ImagePush pushes an image to a registry
+	ImagePush(imageName string) (string, error)
 	// ContainerRemove removes a container
 	ContainerRemove(name string) (string, error)
 	// ContainerRun pulls an image from a registry

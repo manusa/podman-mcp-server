@@ -38,15 +38,37 @@ func TestImagePull(t *testing.T) {
 		t.Run("image_pull returns OK", func(t *testing.T) {
 			if err != nil {
 				t.Fatalf("call tool failed %v", err)
-				return
 			}
 			if toolResult.IsError {
 				t.Fatalf("call tool failed")
-				return
+			}
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman image pull example.com/org/image:tag") {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 			if !strings.HasSuffix(toolResult.Content[0].(mcp.TextContent).Text, "example.com/org/image:tag pulled successfully") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-				return
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+		})
+	})
+}
+
+func TestImagePush(t *testing.T) {
+	testCase(t, func(c *mcpContext) {
+		toolResult, err := c.callTool("image_push", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+		})
+		t.Run("image_push returns OK", func(t *testing.T) {
+			if err != nil {
+				t.Fatalf("call tool failed %v", err)
+			}
+			if toolResult.IsError {
+				t.Fatalf("call tool failed")
+			}
+			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman image push example.com/org/image:tag") {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
+			}
+			if !strings.HasSuffix(toolResult.Content[0].(mcp.TextContent).Text, "example.com/org/image:tag pushed successfully") {
+				t.Errorf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
 			}
 		})
 	})

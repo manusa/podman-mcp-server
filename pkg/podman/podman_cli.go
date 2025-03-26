@@ -74,7 +74,7 @@ func (p *podmanCli) ImageList() (string, error) {
 // ImagePull
 // https://docs.podman.io/en/stable/markdown/podman-pull.1.html
 func (p *podmanCli) ImagePull(imageName string) (string, error) {
-	output, err := p.exec("pull", imageName)
+	output, err := p.exec("image", "pull", imageName)
 	if err == nil {
 		return fmt.Sprintf("%s\n%s pulled successfully", output, imageName), nil
 	}
@@ -83,6 +83,16 @@ func (p *podmanCli) ImagePull(imageName string) (string, error) {
 		if output, err = p.exec("pull", imageName); err == nil {
 			return fmt.Sprintf("%s\n%s pulled successfully", output, imageName), nil
 		}
+	}
+	return "", err
+}
+
+// ImagePush
+// https://docs.podman.io/en/stable/markdown/podman-push.1.html
+func (p *podmanCli) ImagePush(imageName string) (string, error) {
+	output, err := p.exec("image", "push", imageName)
+	if err == nil {
+		return fmt.Sprintf("%s\n%s pushed successfully", output, imageName), nil
 	}
 	return "", err
 }
