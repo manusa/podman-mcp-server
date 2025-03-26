@@ -22,6 +22,8 @@ type Podman interface {
 	ImagePush(imageName string) (string, error)
 	// ImageRemove removes an image from the system
 	ImageRemove(imageName string) (string, error)
+	// VolumeList lists all the volumes on the system
+	VolumeList() (string, error)
 }
 
 func NewPodman() (Podman, error) {

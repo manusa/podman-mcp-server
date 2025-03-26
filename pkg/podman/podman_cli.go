@@ -103,6 +103,12 @@ func (p *podmanCli) ImageRemove(imageName string) (string, error) {
 	return p.exec("image", "rm", imageName)
 }
 
+// VolumeList
+// https://docs.podman.io/en/stable/markdown/podman-volume-ls.1.html
+func (p *podmanCli) VolumeList() (string, error) {
+	return p.exec("volume", "ls")
+}
+
 func (p *podmanCli) exec(args ...string) (string, error) {
 	output, err := exec.Command(p.filePath, args...).CombinedOutput()
 	return string(output), err

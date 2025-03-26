@@ -31,6 +31,7 @@ func NewSever() (*Server, error) {
 	s.server.AddTools(slices.Concat(
 		s.initPodmanContainer(),
 		s.initPodmanImage(),
+		s.initPodmanVolume(),
 	)...)
 	return s, nil
 }
