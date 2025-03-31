@@ -4,8 +4,7 @@ import (
 	"os"
 )
 
-//goland:noinspection GoTestName
-func ExampleVersion() {
+func Example_version() {
 	oldArgs := os.Args
 	defer func() { os.Args = oldArgs }()
 	os.Args = []string{"podman-mcp-server", "--version"}
