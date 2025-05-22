@@ -79,6 +79,13 @@ npm-publish: npm-copy-binaries ## Publish the npm packages
 	jq '.optionalDependencies |= with_entries(.value = "$(NPM_VERSION)")' ./npm/podman-mcp-server/package.json > tmp.json && mv tmp.json ./npm/podman-mcp-server/package.json; \
 	cd npm/podman-mcp-server && npm publish
 
+.PHONY: python-publish
+python-publish: ## Publish the python packages
+	cd ./python && \
+	sed -i "s/version = \".*\"/version = \"$(NPM_VERSION)\"/" pyproject.toml && \
+	uv build && \
+	uv publish
+
 .PHONY: test
 test: ## Run the tests
 	go test -count=1 -v ./...

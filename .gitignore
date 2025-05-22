@@ -1,4 +1,6 @@
 .idea/
+.docusaurus/
+node_modules/
 
 .npmrc
 /podman-mcp-server
@@ -15,3 +17,9 @@ podman-mcp-server-linux-arm64
 !npm/podman-mcp-server-linux-arm64
 podman-mcp-server-windows-amd64.exe
 podman-mcp-server-windows-arm64.exe
+
+python/.venv/
+python/build/
+python/dist/
+python/podman-mcp-server.egg-info/
+!python/podman-mcp-server

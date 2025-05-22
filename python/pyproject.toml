@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podman-mcp-server"
+version = "0.0.0"
+description = "Model Context Protocol (MCP) server for container runtimes (Podman and Docker)"
+readme = {file="README.md", content-type="text/markdown"}
+requires-python = ">=3.6"
+license = "Apache-2.0"
+authors = [
+    { name = "Marc Nuri", email = "marc@marcnuri.com" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/manusa/podman-mcp-server"
+Repository = "https://github.com/manusa/podman-mcp-server"
+
+[project.scripts]
+podman-mcp-server = "podman_mcp_server:main"
