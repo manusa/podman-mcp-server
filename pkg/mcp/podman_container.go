@@ -63,7 +63,7 @@ func (s *Server) initPodmanContainer() []server.ServerTool {
 }
 
 func (s *Server) containerInspect(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerInspect(ctr.Params.Arguments["name"].(string))), nil
+	return NewTextResult(s.podman.ContainerInspect(ctr.GetArguments()["name"].(string))), nil
 }
 
 func (s *Server) containerList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -71,15 +71,15 @@ func (s *Server) containerList(_ context.Context, _ mcp.CallToolRequest) (*mcp.C
 }
 
 func (s *Server) containerLogs(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerLogs(ctr.Params.Arguments["name"].(string))), nil
+	return NewTextResult(s.podman.ContainerLogs(ctr.GetArguments()["name"].(string))), nil
 }
 
 func (s *Server) containerRemove(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerRemove(ctr.Params.Arguments["name"].(string))), nil
+	return NewTextResult(s.podman.ContainerRemove(ctr.GetArguments()["name"].(string))), nil
 }
 
 func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	ports := ctr.Params.Arguments["ports"]
+	ports := ctr.GetArguments()["ports"]
 	portMappings := make(map[int]int)
 	if _, ok := ports.([]interface{}); ok {
 		for _, port := range ports.([]interface{}) {
@@ -93,7 +93,7 @@ func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.
 			}
 		}
 	}
-	environment := ctr.Params.Arguments["environment"]
+	environment := ctr.GetArguments()["environment"]
 	envVariables := make([]string, 0)
 	if _, ok := environment.([]interface{}); ok && len(environment.([]interface{})) > 0 {
 		for _, env := range environment.([]interface{}) {
@@ -103,9 +103,9 @@ func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.
 			envVariables = append(envVariables, env.(string))
 		}
 	}
-	return NewTextResult(s.podman.ContainerRun(ctr.Params.Arguments["imageName"].(string), portMappings, envVariables)), nil
+	return NewTextResult(s.podman.ContainerRun(ctr.GetArguments()["imageName"].(string), portMappings, envVariables)), nil
 }
 
 func (s *Server) containerStop(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerStop(ctr.Params.Arguments["name"].(string))), nil
+	return NewTextResult(s.podman.ContainerStop(ctr.GetArguments()["name"].(string))), nil
 }
