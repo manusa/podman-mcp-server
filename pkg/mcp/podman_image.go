@@ -32,11 +32,11 @@ func (s *Server) initPodmanImage() []server.ServerTool {
 }
 
 func (s *Server) imageBuild(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	imageName := ctr.Params.Arguments["imageName"]
+	imageName := ctr.GetArguments()["imageName"]
 	if _, ok := imageName.(string); !ok {
 		imageName = ""
 	}
-	return NewTextResult(s.podman.ImageBuild(ctr.Params.Arguments["containerFile"].(string), imageName.(string))), nil
+	return NewTextResult(s.podman.ImageBuild(ctr.GetArguments()["containerFile"].(string), imageName.(string))), nil
 }
 
 func (s *Server) imageList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -44,13 +44,13 @@ func (s *Server) imageList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallT
 }
 
 func (s *Server) imagePull(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ImagePull(ctr.Params.Arguments["imageName"].(string))), nil
+	return NewTextResult(s.podman.ImagePull(ctr.GetArguments()["imageName"].(string))), nil
 }
 
 func (s *Server) imagePush(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ImagePush(ctr.Params.Arguments["imageName"].(string))), nil
+	return NewTextResult(s.podman.ImagePush(ctr.GetArguments()["imageName"].(string))), nil
 }
 
 func (s *Server) imageRemove(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ImageRemove(ctr.Params.Arguments["imageName"].(string))), nil
+	return NewTextResult(s.podman.ImageRemove(ctr.GetArguments()["imageName"].(string))), nil
 }
