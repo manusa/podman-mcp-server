@@ -2,6 +2,7 @@
 
 [![GitHub License](https://img.shields.io/github/license/manusa/podman-mcp-server)](https://github.com/manusa/podman-mcp-server/blob/main/LICENSE)
 [![npm](https://img.shields.io/npm/v/podman-mcp-server)](https://www.npmjs.com/package/podman-mcp-server)
+[![PyPI - Version](https://img.shields.io/pypi/v/podman-mcp-server)](https://pypi.org/project/podman-mcp-server/)
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/manusa/podman-mcp-server?sort=semver)](https://github.com/manusa/podman-mcp-server/releases/latest)
 [![Build](https://github.com/manusa/podman-mcp-server/actions/workflows/build.yaml/badge.svg)](https://github.com/manusa/podman-mcp-server/actions/workflows/build.yaml)
 
@@ -39,6 +40,7 @@ Open your `claude_desktop_config.json` and add the mcp server to the list of `mc
 
 Install the Podman MCP server extension in VS Code Insiders by pressing the following link:
 
+[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522podman%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522podman-mcp-server%2540latest%2522%255D%257D)
 [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522podman%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522podman-mcp-server%2540latest%2522%255D%257D)
 
 Alternatively, you can install the extension manually by running the following command:
