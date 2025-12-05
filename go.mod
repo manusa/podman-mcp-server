@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/mark3labs/mcp-go v0.43.2
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	golang.org/x/net v0.47.0
 )
