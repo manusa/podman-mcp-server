@@ -3,16 +3,21 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path"
 	"runtime"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/client"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
+	"github.com/stretchr/testify/suite"
 )
+
+// Ensure suite.Suite is available for test migration (issue #68)
+var _ suite.TestingSuite = (*suite.Suite)(nil)
 
 type mcpContext struct {
 	podmanBinaryDir string
