@@ -1,6 +1,11 @@
 package mcp_test
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -8,12 +13,20 @@ import (
 	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
+const updateSnapshotsEnvVar = "UPDATE_SNAPSHOTS"
+
 type McpServerSuite struct {
 	test.McpSuite
+	updateSnapshots bool
 }
 
 func TestMcpServer(t *testing.T) {
 	suite.Run(t, new(McpServerSuite))
+}
+
+func (s *McpServerSuite) SetupTest() {
+	s.McpSuite.SetupTest()
+	s.updateSnapshots = os.Getenv(updateSnapshotsEnvVar) != ""
 }
 
 func (s *McpServerSuite) TestListTools() {
@@ -46,4 +59,39 @@ func (s *McpServerSuite) TestListTools() {
 			s.True(nameSet[name], "tool %s not found", name)
 		})
 	}
+}
+
+func (s *McpServerSuite) TestToolDefinitionsSnapshot() {
+	tools, err := s.ListTools()
+	s.Require().NoError(err)
+
+	// Sort tools by name for consistent snapshots
+	sort.Slice(tools.Tools, func(i, j int) bool {
+		return tools.Tools[i].Name < tools.Tools[j].Name
+	})
+
+	s.assertJsonSnapshot("tool_definitions.json", tools.Tools)
+}
+
+// assertJsonSnapshot compares actual data against a JSON snapshot file.
+// Set UPDATE_SNAPSHOTS=1 environment variable to regenerate snapshot files.
+func (s *McpServerSuite) assertJsonSnapshot(snapshotFile string, actual any) {
+	_, file, _, _ := runtime.Caller(1)
+	snapshotPath := filepath.Join(filepath.Dir(file), "testdata", snapshotFile)
+	actualJson, err := json.MarshalIndent(actual, "", "  ")
+	s.Require().NoErrorf(err, "failed to marshal actual data: %v", err)
+	if s.updateSnapshots {
+		err := os.WriteFile(snapshotPath, append(actualJson, '\n'), 0644)
+		s.Require().NoErrorf(err, "failed to write snapshot file %s: %v", snapshotFile, err)
+		s.T().Logf("Updated snapshot: %s", snapshotFile)
+		return
+	}
+	expectedJson := test.ReadFile("testdata", snapshotFile)
+	s.JSONEq(
+		expectedJson,
+		string(actualJson),
+		"snapshot %s does not match - to update snapshots re-run the tests with %s=1",
+		snapshotFile,
+		updateSnapshotsEnvVar,
+	)
 }

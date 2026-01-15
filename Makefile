@@ -90,6 +90,10 @@ python-publish: ## Publish the python packages
 test: ## Run the tests
 	go test -count=1 -v ./...
 
+.PHONY: test-update-snapshots
+test-update-snapshots: ## Update test snapshots
+	UPDATE_SNAPSHOTS=1 go test -count=1 -v ./...
+
 .PHONY: format
 format: ## Format the code
 	go fmt ./...
