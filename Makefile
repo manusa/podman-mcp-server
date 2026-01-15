@@ -15,17 +15,14 @@ LD_FLAGS = -s -w \
 	-X '$(PACKAGE)/pkg/version.BinaryName=$(BINARY_NAME)'
 COMMON_BUILD_ARGS = -ldflags "$(LD_FLAGS)"
 
-# NPM version should not append the -dirty flag
-NPM_VERSION ?= $(shell echo $(shell git describe --tags --always) | sed 's/^v//')
+# Version for package publishing should not append the -dirty flag
+GIT_TAG_VERSION ?= $(shell echo $(shell git describe --tags --always) | sed 's/^v//')
 OSES = darwin linux windows
 ARCHS = amd64 arm64
 
 CLEAN_TARGETS :=
 CLEAN_TARGETS += '$(BINARY_NAME)'
 CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,)))
-CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./npm/$(BINARY_NAME)-$(os)-$(arch)/bin/))
-CLEAN_TARGETS += ./npm/podman-mcp-server/.npmrc ./npm/podman-mcp-server/LICENSE ./npm/podman-mcp-server/README.md
-CLEAN_TARGETS += $(foreach os,$(OSES),$(foreach arch,$(ARCHS),./npm/$(BINARY_NAME)-$(os)-$(arch)/.npmrc))
 
 # The help will print out all targets with their descriptions organized bellow their categories. The categories are represented by `##@` and the target descriptions by `##`.
 # The awk commands is responsible to read the entire set of makefiles included in this invocation, looking for lines of the file as xyz: ## something, and then pretty-format the target and help. Then, if there's a line with ##@ something, that gets pretty-printed as a category.
@@ -54,35 +51,10 @@ build-all-platforms: clean tidy format ## Build the project for all platforms
 		GOOS=$(os) GOARCH=$(arch) go build $(COMMON_BUILD_ARGS) -o $(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,) ./cmd/podman-mcp-server; \
 	))
 
-.PHONY: npm-copy-binaries
-npm-copy-binaries: build-all-platforms ## Copy the binaries to each npm package
-	$(foreach os,$(OSES),$(foreach arch,$(ARCHS), \
-		EXECUTABLE=./$(BINARY_NAME)-$(os)-$(arch)$(if $(findstring windows,$(os)),.exe,); \
-		DIRNAME=$(BINARY_NAME)-$(os)-$(arch); \
-		mkdir -p ./npm/$$DIRNAME/bin; \
-		cp $$EXECUTABLE ./npm/$$DIRNAME/bin/; \
-	))
-
-.PHONY: npm-publish
-npm-publish: npm-copy-binaries ## Publish the npm packages
-	$(foreach os,$(OSES),$(foreach arch,$(ARCHS), \
-		DIRNAME="$(BINARY_NAME)-$(os)-$(arch)"; \
-		cd npm/$$DIRNAME; \
-		echo '//registry.npmjs.org/:_authToken=$(NPM_TOKEN)' >> .npmrc; \
-		jq '.version = "$(NPM_VERSION)"' package.json > tmp.json && mv tmp.json package.json; \
-		npm publish; \
-		cd ../..; \
-	))
-	cp README.md LICENSE ./npm/podman-mcp-server/
-	echo '//registry.npmjs.org/:_authToken=$(NPM_TOKEN)' >> ./npm/podman-mcp-server/.npmrc
-	jq '.version = "$(NPM_VERSION)"' ./npm/podman-mcp-server/package.json > tmp.json && mv tmp.json ./npm/podman-mcp-server/package.json; \
-	jq '.optionalDependencies |= with_entries(.value = "$(NPM_VERSION)")' ./npm/podman-mcp-server/package.json > tmp.json && mv tmp.json ./npm/podman-mcp-server/package.json; \
-	cd npm/podman-mcp-server && npm publish
-
 .PHONY: python-publish
 python-publish: ## Publish the python packages
 	cd ./python && \
-	sed -i "s/version = \".*\"/version = \"$(NPM_VERSION)\"/" pyproject.toml && \
+	sed -i "s/version = \".*\"/version = \"$(GIT_TAG_VERSION)\"/" pyproject.toml && \
 	uv build && \
 	uv publish
 
@@ -101,3 +73,6 @@ format: ## Format the code
 .PHONY: tidy
 tidy: ## Tidy up the go modules
 	go mod tidy
+
+# Include build configuration files
+-include build/*.mk
