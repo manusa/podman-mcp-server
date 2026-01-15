@@ -1,26 +1,29 @@
-package mcp
+package mcp_test
 
 import (
-	"github.com/mark3labs/mcp-go/mcp"
-	"strings"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-func TestNetworkList(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("network_list", map[string]interface{}{})
-		t.Run("network_list returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("network_list lists all available networks", func(t *testing.T) {
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman network ls") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+type NetworkToolsSuite struct {
+	test.McpSuite
+}
+
+func TestNetworkTools(t *testing.T) {
+	suite.Run(t, new(NetworkToolsSuite))
+}
+
+func (s *NetworkToolsSuite) TestNetworkList() {
+	toolResult, err := s.CallTool("network_list", map[string]interface{}{})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("lists all available networks", func() {
+		s.Regexp("^podman network ls", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }

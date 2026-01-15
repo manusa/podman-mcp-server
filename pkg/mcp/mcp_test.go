@@ -1,12 +1,23 @@
-package mcp
+package mcp_test
 
 import (
-	"github.com/mark3labs/mcp-go/mcp"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
+
+	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-func TestTools(t *testing.T) {
-	expectedNames := []string{
+type McpServerSuite struct {
+	test.McpSuite
+}
+
+func TestMcpServer(t *testing.T) {
+	suite.Run(t, new(McpServerSuite))
+}
+
+func (s *McpServerSuite) TestListTools() {
+	expectedTools := []string{
 		"container_inspect",
 		"container_list",
 		"container_logs",
@@ -21,23 +32,18 @@ func TestTools(t *testing.T) {
 		"network_list",
 		"volume_list",
 	}
-	testCase(t, func(c *mcpContext) {
-		tools, err := c.mcpClient.ListTools(c.ctx, mcp.ListToolsRequest{})
-		t.Run("ListTools returns tools", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call ListTools failed %v", err)
-			}
+
+	tools, err := s.ListTools()
+	s.Require().NoError(err)
+
+	nameSet := make(map[string]bool)
+	for _, tool := range tools.Tools {
+		nameSet[tool.Name] = true
+	}
+
+	for _, name := range expectedTools {
+		s.Run("has "+name+" tool", func() {
+			s.True(nameSet[name], "tool %s not found", name)
 		})
-		nameSet := make(map[string]bool)
-		for _, tool := range tools.Tools {
-			nameSet[tool.Name] = true
-		}
-		for _, name := range expectedNames {
-			t.Run("ListTools has "+name+" tool", func(t *testing.T) {
-				if nameSet[name] != true {
-					t.Errorf("tool %s not found", name)
-				}
-			})
-		}
-	})
+	}
 }

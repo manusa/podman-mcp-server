@@ -1,120 +1,87 @@
-package mcp
+package mcp_test
 
 import (
-	"github.com/mark3labs/mcp-go/mcp"
-	"strings"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-func TestContainerInspect(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("container_inspect", map[string]interface{}{
-			"name": "example-container",
-		})
-		t.Run("container_inspect returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_inspect inspects provided container", func(t *testing.T) {
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman inspect example-container") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+type ContainerToolsSuite struct {
+	test.McpSuite
+}
+
+func TestContainerTools(t *testing.T) {
+	suite.Run(t, new(ContainerToolsSuite))
+}
+
+func (s *ContainerToolsSuite) TestContainerInspect() {
+	toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
+		"name": "example-container",
+	})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("inspects provided container", func() {
+		s.Regexp("^podman inspect example-container", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }
 
-func TestContainerList(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("container_list", map[string]interface{}{})
-		t.Run("container_list returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman container list -a") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+func (s *ContainerToolsSuite) TestContainerList() {
+	toolResult, err := s.CallTool("container_list", map[string]interface{}{})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("lists all containers", func() {
+		s.Regexp("^podman container list -a", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }
 
-func TestContainerLogs(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("container_logs", map[string]interface{}{
-			"name": "example-container",
-		})
-		t.Run("container_logs returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_logs retrieves logs from provided container", func(t *testing.T) {
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman logs example-container") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+func (s *ContainerToolsSuite) TestContainerLogs() {
+	toolResult, err := s.CallTool("container_logs", map[string]interface{}{
+		"name": "example-container",
+	})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("retrieves logs from provided container", func() {
+		s.Regexp("^podman logs example-container", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }
 
-func TestContainerRemove(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("container_remove", map[string]interface{}{
-			"name": "example-container",
-		})
-		t.Run("container_remove returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_remove removes provided container", func(t *testing.T) {
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman container rm example-container") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+func (s *ContainerToolsSuite) TestContainerRemove() {
+	toolResult, err := s.CallTool("container_remove", map[string]interface{}{
+		"name": "example-container",
+	})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("removes provided container", func() {
+		s.Regexp("^podman container rm example-container", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }
 
-func TestContainerRun(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("container_run", map[string]interface{}{
+func (s *ContainerToolsSuite) TestContainerRun() {
+	s.Run("basic run", func() {
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
 			"imageName": "example.com/org/image:tag",
 		})
-		t.Run("container_run returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_run runs provided image", func(t *testing.T) {
-			if !strings.HasSuffix(toolResult.Content[0].(mcp.TextContent).Text, " example.com/org/image:tag\n") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
-		t.Run("container_run runs in detached mode", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " -d ") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
-		t.Run("container_run publishes all exposed ports", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --publish-all ") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
-		toolResult, err = c.callTool("container_run", map[string]interface{}{
+		s.NoError(err)
+		s.False(toolResult.IsError)
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Regexp("example.com/org/image:tag\n$", text)
+		s.Contains(text, " -d ", "should run in detached mode")
+		s.Contains(text, " --publish-all ", "should publish all exposed ports")
+	})
+
+	s.Run("with ports", func() {
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
 			"imageName": "example.com/org/image:tag",
 			"ports": []interface{}{
 				1337, // Invalid entry to test
@@ -123,26 +90,16 @@ func TestContainerRun(t *testing.T) {
 				"8443:443",
 			},
 		})
-		t.Run("container_run with ports returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_run with ports publishes provided ports", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --publish=8080:80 ") {
-				t.Fatalf("expected port --publish=8080:80, got %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --publish=8082:8082 ") {
-				t.Fatalf("expected port --publish=8082:8082, got %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --publish=8443:443 ") {
-				t.Fatalf("expected port --publish=8443:443, got %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
-		toolResult, err = c.callTool("container_run", map[string]interface{}{
+		s.NoError(err)
+		s.False(toolResult.IsError)
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, " --publish=8080:80 ")
+		s.Contains(text, " --publish=8082:8082 ")
+		s.Contains(text, " --publish=8443:443 ")
+	})
+
+	s.Run("with environment", func() {
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
 			"imageName": "example.com/org/image:tag",
 			"ports":     []interface{}{"8080:80"},
 			"environment": []interface{}{
@@ -150,42 +107,23 @@ func TestContainerRun(t *testing.T) {
 				"FOO=BAR",
 			},
 		})
-		t.Run("container_run with environment returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_run with environment sets provided environment variables", func(t *testing.T) {
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --env KEY=VALUE ") {
-				t.Fatalf("expected env --env KEY=VALUE, got %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-			if !strings.Contains(toolResult.Content[0].(mcp.TextContent).Text, " --env FOO=BAR ") {
-				t.Fatalf("expected env --env FOO=BAR, got %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+		s.NoError(err)
+		s.False(toolResult.IsError)
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, " --env KEY=VALUE ")
+		s.Contains(text, " --env FOO=BAR ")
 	})
 }
 
-func TestContainerStop(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("container_stop", map[string]interface{}{
-			"name": "example-container",
-		})
-		t.Run("container_stop returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("container_stop stops provided container", func(t *testing.T) {
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman container stop example-container") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+func (s *ContainerToolsSuite) TestContainerStop() {
+	toolResult, err := s.CallTool("container_stop", map[string]interface{}{
+		"name": "example-container",
+	})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("stops provided container", func() {
+		s.Regexp("^podman container stop example-container", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }

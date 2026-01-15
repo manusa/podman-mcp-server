@@ -1,26 +1,29 @@
-package mcp
+package mcp_test
 
 import (
-	"github.com/mark3labs/mcp-go/mcp"
-	"strings"
 	"testing"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-func TestVolumeList(t *testing.T) {
-	testCase(t, func(c *mcpContext) {
-		toolResult, err := c.callTool("volume_list", map[string]interface{}{})
-		t.Run("volume_list returns OK", func(t *testing.T) {
-			if err != nil {
-				t.Fatalf("call tool failed %v", err)
-			}
-			if toolResult.IsError {
-				t.Fatalf("call tool failed")
-			}
-		})
-		t.Run("volume_list lists all available volumes", func(t *testing.T) {
-			if !strings.HasPrefix(toolResult.Content[0].(mcp.TextContent).Text, "podman volume ls") {
-				t.Fatalf("unexpected result %v", toolResult.Content[0].(mcp.TextContent).Text)
-			}
-		})
+type VolumeToolsSuite struct {
+	test.McpSuite
+}
+
+func TestVolumeTools(t *testing.T) {
+	suite.Run(t, new(VolumeToolsSuite))
+}
+
+func (s *VolumeToolsSuite) TestVolumeList() {
+	toolResult, err := s.CallTool("volume_list", map[string]interface{}{})
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+	s.Run("lists all available volumes", func() {
+		s.Regexp("^podman volume ls", toolResult.Content[0].(mcp.TextContent).Text)
 	})
 }
