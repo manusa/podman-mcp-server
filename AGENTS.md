@@ -15,6 +15,7 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
     - `podman/` - Podman/Docker CLI abstraction layer with interface definition and CLI implementation.
     - `podman-mcp-server/cmd/` - CLI command definition using Cobra framework.
     - `version/` - Version information management.
+  - `internal/test/` – shared test utilities (McpSuite, mock podman helpers).
 - `.github/` – GitHub-related configuration (Actions workflows, Dependabot).
 - `npm/` – Node packages that wrap the compiled binaries for distribution through npmjs.com.
 - `python/` – Python package providing a script that downloads the correct platform binary from the GitHub releases page and runs it for distribution through pypi.org.
@@ -117,80 +118,114 @@ make test
 
 ### Testing Patterns and Guidelines
 
-> **Note:** Tests are currently written with vanilla `testing` package but should be migrated to `testify/suite`
-> to match kubernetes-mcp-server patterns. See [Issue #68](https://github.com/manusa/podman-mcp-server/issues/68).
+Tests use `testify/suite` following the kubernetes-mcp-server patterns.
 
-#### Target Testing Pattern (testify/suite)
+#### Test Suites
 
-New tests should use `testify/suite` following the kubernetes-mcp-server pattern:
+All tests use `testify/suite` with the `test.McpSuite` base from `internal/test/`:
 
 ```go
+package mcp_test
+
+import (
+    "testing"
+
+    "github.com/mark3labs/mcp-go/mcp"
+    "github.com/stretchr/testify/suite"
+
+    "github.com/manusa/podman-mcp-server/internal/test"
+)
+
 type ContainerToolsSuite struct {
-    suite.Suite
-    // test fixtures
-}
-
-func (s *ContainerToolsSuite) SetupTest() {
-    // setup before each test
-}
-
-func (s *ContainerToolsSuite) TestContainerList() {
-    s.Run("returns empty list when no containers", func() {
-        // test implementation
-        s.Equal(expected, actual)
-    })
-    s.Run("returns all containers when requested", func() {
-        // test implementation
-    })
+    test.McpSuite
 }
 
 func TestContainerTools(t *testing.T) {
     suite.Run(t, new(ContainerToolsSuite))
 }
+
+func (s *ContainerToolsSuite) TestContainerList() {
+    toolResult, err := s.CallTool("container_list", map[string]interface{}{})
+    s.Run("returns OK", func() {
+        s.NoError(err)
+        s.False(toolResult.IsError)
+    })
+    s.Run("lists all containers", func() {
+        s.Regexp("^podman container list", toolResult.Content[0].(mcp.TextContent).Text)
+    })
+}
 ```
 
 Key patterns:
-- Use `testify/suite` for organizing tests into suites
+- Embed `test.McpSuite` for MCP server/client setup
+- Use `package mcp_test` (external test package) to avoid import cycles
 - Use nested subtests with `s.Run()` for related scenarios
-- Use `s.Equal()`, `s.True()`, `s.NoError()` for assertions
-- One assertion per test case when possible
+- Use `s.NoError()`, `s.False()`, `s.Regexp()`, `s.Contains()` for assertions
+- Use `s.Require().NoError()` for setup assertions that should stop the test
 
-#### Current Testing Infrastructure
+#### Test Infrastructure
 
-This project currently uses a mock Podman binary approach for testing:
+The `internal/test/` package provides shared test utilities:
 
-- The `testdata/podman/main.go` file contains a fake podman binary that:
-  - Echoes the command line arguments it receives
-  - Optionally reads from an `output.txt` file to provide mock responses
-- Tests build this fake binary and prepend its directory to PATH
-- This allows testing MCP tools without requiring an actual Podman installation
+- **`mcp.go`** - `McpSuite` base suite with:
+  - `SetupTest()` / `TearDownTest()` - MCP server and client lifecycle
+  - `CallTool(name, args)` - Call an MCP tool
+  - `ListTools()` - List available tools
+  - `WithPodmanOutput(lines...)` - Inject mock podman output
+
+- **`podman.go`** - Mock podman binary helpers:
+  - `WithPodmanBinary(t)` - Build fake podman and prepend to PATH
+
+- **`helpers.go`** - General utilities:
+  - `Must[T](v, err)` - Panic on error helper
+  - `ReadFile(path...)` - Read file relative to caller
+
+#### Mock Podman Binary
+
+The `testdata/podman/main.go` contains a fake podman binary that:
+- Echoes the command line arguments it receives
+- Optionally reads from an `output.txt` file to provide mock responses
+
+This allows testing MCP tools without requiring an actual Podman installation.
 
 #### Test Structure
 
-Tests are organized in `pkg/mcp/` alongside the source files:
-- `common_test.go` - Shared test infrastructure (mock binary setup, MCP client helpers)
-- `mcp_test.go` - MCP server integration tests
-- `podman_container_test.go` - Container tool tests
-- `podman_image_test.go` - Image tool tests
-- `podman_network_test.go` - Network tool tests
-- `podman_volume_test.go` - Volume tool tests
+Tests are organized in `pkg/mcp/` with external test packages:
+- `mcp_test.go` - MCP server tests and snapshot testing
+- `podman_container_test.go` - Container tool tests (`ContainerToolsSuite`)
+- `podman_image_test.go` - Image tool tests (`ImageToolsSuite`)
+- `podman_network_test.go` - Network tool tests (`NetworkToolsSuite`)
+- `podman_volume_test.go` - Volume tool tests (`VolumeToolsSuite`)
 
-#### Test Helpers
+#### Snapshot Testing
 
-The `mcpContext` struct in `common_test.go` provides:
-- `testCase()` - Sets up test environment with mock binary and MCP client
-- `callTool()` - Calls an MCP tool with arguments
-- `withPodmanOutput()` - Injects mock output for podman commands
+Tool definitions are snapshot tested to detect unintended changes:
+
+```go
+func (s *McpServerSuite) TestToolDefinitionsSnapshot() {
+    tools, err := s.ListTools()
+    s.Require().NoError(err)
+    s.assertJsonSnapshot("tool_definitions.json", tools.Tools)
+}
+```
+
+Snapshots are stored in `pkg/mcp/testdata/`. To update snapshots:
+
+```bash
+make test-update-snapshots
+# or
+UPDATE_SNAPSHOTS=1 go test ./...
+```
 
 #### Writing Tests
 
 When adding tests:
-1. Use `testify/suite` pattern for new test files.
-2. Use the `testCase()` helper to set up the test environment.
-3. Use `withPodmanOutput()` to inject expected command output.
-4. Call tools using `callTool()` and verify the results.
-5. Test both success and error scenarios.
-6. Use nested subtests with `s.Run()` for related scenarios.
+1. Create a suite struct embedding `test.McpSuite`.
+2. Use `s.CallTool()` to invoke MCP tools.
+3. Use `s.WithPodmanOutput()` to inject expected command output.
+4. Use `s.Run()` for nested subtests with related scenarios.
+5. Use `s.Regexp("^pattern", text)` for prefix matching, `s.Regexp("pattern$", text)` for suffix.
+6. Test both success and error scenarios.
 
 ## Dependencies
 
@@ -199,7 +234,7 @@ When introducing new modules run `make tidy` so that `go.mod` and `go.sum` remai
 ## Coding style
 
 - Go modules target Go **1.24** (see `go.mod`).
-- Tests are written with the standard library `testing` package.
+- Tests use `testify/suite` with the `test.McpSuite` base (see Testing section above).
 - Build and test steps are defined in the Makefile—keep them working.
 - Use interfaces for abstraction (see `pkg/podman/interface.go`).
 
