@@ -17,10 +17,13 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
     - `version/` - Version information management.
   - `internal/test/` – shared test utilities (McpSuite, mock podman helpers).
 - `.github/` – GitHub-related configuration (Actions workflows, Dependabot).
+- `build/` – modular Makefile includes for packaging targets.
+  - `node.mk` – NPM packaging targets (npm-copy-binaries, npm-copy-project-files, npm-publish).
+  - `python.mk` – Python/PyPI packaging targets (python-publish).
 - `npm/` – Node packages that wrap the compiled binaries for distribution through npmjs.com.
 - `python/` – Python package providing a script that downloads the correct platform binary from the GitHub releases page and runs it for distribution through pypi.org.
 - `testdata/` – test fixtures including a mock podman binary for testing.
-- `Makefile` – tasks for building, formatting, and testing.
+- `Makefile` – core build tasks; includes `build/*.mk` for packaging targets.
 
 ## Feature development
 
@@ -248,6 +251,35 @@ The server is distributed as a binary executable, an npm package, and a Python p
 - A **Python** package is available at [pypi.org](https://pypi.org/project/podman-mcp-server/).
   It provides a script that downloads the correct platform binary from the GitHub releases page and runs it.
   It provides a convenient way to run the server using `uvx` or `python -m podman_mcp_server`.
+
+### NPM Package Structure
+
+The npm distribution uses a modular package structure:
+- `podman-mcp-server` - Main package with the wrapper script (`bin/index.js`)
+- `podman-mcp-server-{os}-{arch}` - Platform-specific packages containing the binary
+
+The `package.json` files are generated dynamically during the build process by `build/node.mk`.
+Only the `bin/index.js` wrapper script is stored in the repository.
+
+The wrapper script (`npm/podman-mcp-server/bin/index.js`):
+- Resolves the correct platform-specific binary using `optionalDependencies`
+- Uses `spawn` (not `execFileSync`) for proper signal handling
+- Forwards SIGTERM, SIGINT, SIGHUP signals to the child process
+- Returns correct exit codes based on termination signals
+
+### Publishing Packages
+
+Use the modular build targets for publishing:
+
+```bash
+# Publish to npm (builds all platforms first)
+make npm-publish
+
+# Publish to PyPI
+make python-publish
+```
+
+The `GIT_TAG_VERSION` variable (derived from git tags) is used for package versions.
 
 ## Available MCP Tools
 
