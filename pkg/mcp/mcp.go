@@ -49,6 +49,11 @@ func (s *Server) ServeSse(baseUrl string) *server.SSEServer {
 	return server.NewSSEServer(s.server, options...)
 }
 
+// Server returns the underlying MCP server instance.
+func (s *Server) Server() *server.MCPServer {
+	return s.server
+}
+
 func NewTextResult(content string, err error) *mcp.CallToolResult {
 	if err != nil {
 		return &mcp.CallToolResult{

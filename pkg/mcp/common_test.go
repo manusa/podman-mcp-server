@@ -13,12 +13,10 @@ import (
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/stretchr/testify/suite"
 )
 
-// Ensure suite.Suite is available for test migration (issue #68)
-var _ suite.TestingSuite = (*suite.Suite)(nil)
-
+// mcpContext provides test helpers for vanilla testing package tests.
+// For new tests, use internal/test.McpSuite with testify/suite instead.
 type mcpContext struct {
 	podmanBinaryDir string
 	ctx             context.Context
