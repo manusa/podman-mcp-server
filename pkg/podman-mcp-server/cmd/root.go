@@ -1,14 +1,19 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"github.com/manusa/podman-mcp-server/pkg/mcp"
-	"github.com/manusa/podman-mcp-server/pkg/version"
-	"github.com/mark3labs/mcp-go/server"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
+
+	"github.com/manusa/podman-mcp-server/pkg/mcp"
+	"github.com/manusa/podman-mcp-server/pkg/version"
 )
 
 var rootCmd = &cobra.Command{
@@ -38,23 +43,43 @@ Podman Model Context Protocol (MCP) server
 			fmt.Println(version.Version)
 			return
 		}
-		mcpServer, err := mcp.NewSever()
+
+		ctx, cancel := context.WithCancel(cmd.Context())
+		defer cancel()
+
+		// Handle signals for graceful shutdown
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		go func() {
+			<-sigCh
+			cancel()
+		}()
+
+		mcpServer, err := mcp.NewServer()
 		if err != nil {
 			panic(err)
 		}
 
-		var sseServer *server.SSEServer
+		var httpServer *http.Server
 		if ssePort := viper.GetInt("sse-port"); ssePort > 0 {
-			sseServer = mcpServer.ServeSse(viper.GetString("sse-base-url"))
-			if err := sseServer.Start(fmt.Sprintf(":%d", ssePort)); err != nil {
-				panic(err)
+			sseHandler := mcpServer.ServeSse()
+			httpServer = &http.Server{
+				Addr:    fmt.Sprintf(":%d", ssePort),
+				Handler: sseHandler,
 			}
+			go func() {
+				if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					panic(err)
+				}
+			}()
 		}
-		if err := mcpServer.ServeStdio(); err != nil && !errors.Is(err, context.Canceled) {
+
+		if err := mcpServer.ServeStdio(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			panic(err)
 		}
-		if sseServer != nil {
-			_ = sseServer.Shutdown(cmd.Context())
+
+		if httpServer != nil {
+			_ = httpServer.Shutdown(context.Background())
 		}
 	},
 }

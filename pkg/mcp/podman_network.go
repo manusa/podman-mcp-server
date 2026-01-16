@@ -2,18 +2,33 @@ package mcp
 
 import (
 	"context"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/manusa/podman-mcp-server/pkg/api"
 )
 
-func (s *Server) initPodmanNetwork() []server.ServerTool {
-	return []server.ServerTool{
-		{mcp.NewTool("network_list",
-			mcp.WithDescription("List all the available Docker or Podman networks"),
-		), s.networkList},
+func initNetworkTools() []api.ServerTool {
+	return []api.ServerTool{
+		{
+			Tool: api.Tool{
+				Name:        "network_list",
+				Description: "List all the available Docker or Podman networks",
+				Annotations: api.ToolAnnotations{
+					Title:           "Network: List",
+					ReadOnlyHint:    ptr(true),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(true),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+				},
+			},
+			Handler: networkList,
+		},
 	}
 }
 
-func (s *Server) networkList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.NetworkList()), nil
+func networkList(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	result, err := params.Podman.NetworkList()
+	return api.NewToolCallResult(result, err), nil
 }

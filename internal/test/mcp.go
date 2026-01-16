@@ -7,7 +7,6 @@ import (
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
 	"github.com/stretchr/testify/suite"
 
 	mcpServer "github.com/manusa/podman-mcp-server/pkg/mcp"
@@ -27,9 +26,11 @@ type McpSuite struct {
 func (s *McpSuite) SetupTest() {
 	var err error
 	s.podmanBinaryDir = WithPodmanBinary(s.T())
-	s.mcpServer, err = mcpServer.NewSever()
+	s.mcpServer, err = mcpServer.NewServer()
 	s.Require().NoError(err)
-	s.mcpHttpServer = server.NewTestServer(s.mcpServer.Server())
+	// Use the go-sdk's SSE handler wrapped in httptest.Server
+	sseHandler := s.mcpServer.ServeSse()
+	s.mcpHttpServer = httptest.NewServer(sseHandler)
 	s.mcpClient, err = client.NewSSEMCPClient(s.mcpHttpServer.URL + "/sse")
 	s.Require().NoError(err)
 	err = s.mcpClient.Start(s.T().Context())

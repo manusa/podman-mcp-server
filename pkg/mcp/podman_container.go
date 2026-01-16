@@ -2,110 +2,214 @@ package mcp
 
 import (
 	"context"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"strconv"
-	"strings"
+
+	"github.com/manusa/podman-mcp-server/pkg/api"
 )
 
-func (s *Server) initPodmanContainer() []server.ServerTool {
-	return []server.ServerTool{
-		{mcp.NewTool("container_inspect",
-			mcp.WithDescription("Displays the low-level information and configuration of a Docker or Podman container with the specified container ID or name"),
-			mcp.WithString("name", mcp.Description("Docker or Podman container ID or name to displays the information"), mcp.Required()),
-		), s.containerInspect},
-		{mcp.NewTool("container_list",
-			mcp.WithDescription("Prints out information about the running Docker or Podman containers"),
-		), s.containerList},
-		{mcp.NewTool("container_logs",
-			mcp.WithDescription("Displays the logs of a Docker or Podman container with the specified container ID or name"),
-			mcp.WithString("name", mcp.Description("Docker or Podman container ID or name to displays the logs"), mcp.Required()),
-		), s.containerLogs},
-		{mcp.NewTool("container_remove",
-			mcp.WithDescription("Removes a Docker or Podman container with the specified container ID or name (rm)"),
-			mcp.WithString("name", mcp.Description("Docker or Podman container ID or name to remove"), mcp.Required()),
-		), s.containerRemove},
-		{mcp.NewTool("container_run",
-			mcp.WithDescription("Runs a Docker or Podman container with the specified image name"),
-			mcp.WithString("imageName", mcp.Description("Docker or Podman container image name to pull"), mcp.Required()),
-			mcp.WithArray("ports", mcp.Description("Port mappings to expose on the host. "+
-				"Format: <hostPort>:<containerPort>. "+
-				"Example: 8080:80. "+
-				"(Optional, add only to expose ports)"),
-				// TODO: manual fix to ensure that the items property gets initialized (Gemini)
-				// https://www.googlecloudcommunity.com/gc/AI-ML/Gemini-API-400-Bad-Request-Array-fields-breaks-function-calling/m-p/769835?nobounce
-				func(schema map[string]interface{}) {
-					schema["type"] = "array"
-					schema["items"] = map[string]interface{}{
-						"type": "string",
-					}
+func initContainerTools() []api.ServerTool {
+	return []api.ServerTool{
+		{
+			Tool: api.Tool{
+				Name:        "container_inspect",
+				Description: "Displays the low-level information and configuration of a Docker or Podman container with the specified container ID or name",
+				Annotations: api.ToolAnnotations{
+					Title:           "Container: Inspect",
+					ReadOnlyHint:    ptr(true),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(true),
+					OpenWorldHint:   ptr(false),
 				},
-			),
-			mcp.WithArray("environment", mcp.Description("Environment variables to set in the container. "+
-				"Format: <key>=<value>. "+
-				"Example: FOO=bar. "+
-				"(Optional, add only to set environment variables)"),
-				// TODO: manual fix to ensure that the items property gets initialized (Gemini)
-				// https://www.googlecloudcommunity.com/gc/AI-ML/Gemini-API-400-Bad-Request-Array-fields-breaks-function-calling/m-p/769835?nobounce
-				func(schema map[string]interface{}) {
-					schema["type"] = "array"
-					schema["items"] = map[string]interface{}{
-						"type": "string",
-					}
+				InputSchema: api.InputSchema{
+					Type: "object",
+					Properties: map[string]api.Property{
+						"name": {
+							Type:        "string",
+							Description: "Docker or Podman container ID or name to display the information",
+						},
+					},
+					Required: []string{"name"},
 				},
-			),
-		), s.containerRun},
-		{mcp.NewTool("container_stop",
-			mcp.WithDescription("Stops a Docker or Podman running container with the specified container ID or name"),
-			mcp.WithString("name", mcp.Description("Docker or Podman container ID or name to stop"), mcp.Required()),
-		), s.containerStop},
+			},
+			Handler: containerInspect,
+		},
+		{
+			Tool: api.Tool{
+				Name:        "container_list",
+				Description: "Prints out information about the running Docker or Podman containers",
+				Annotations: api.ToolAnnotations{
+					Title:           "Container: List",
+					ReadOnlyHint:    ptr(true),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(true),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+				},
+			},
+			Handler: containerList,
+		},
+		{
+			Tool: api.Tool{
+				Name:        "container_logs",
+				Description: "Displays the logs of a Docker or Podman container with the specified container ID or name",
+				Annotations: api.ToolAnnotations{
+					Title:           "Container: Logs",
+					ReadOnlyHint:    ptr(true),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(true),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+					Properties: map[string]api.Property{
+						"name": {
+							Type:        "string",
+							Description: "Docker or Podman container ID or name to display the logs",
+						},
+					},
+					Required: []string{"name"},
+				},
+			},
+			Handler: containerLogs,
+		},
+		{
+			Tool: api.Tool{
+				Name:        "container_remove",
+				Description: "Removes a Docker or Podman container with the specified container ID or name (rm)",
+				Annotations: api.ToolAnnotations{
+					Title:           "Container: Remove",
+					ReadOnlyHint:    ptr(false),
+					DestructiveHint: ptr(true),
+					IdempotentHint:  ptr(false),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+					Properties: map[string]api.Property{
+						"name": {
+							Type:        "string",
+							Description: "Docker or Podman container ID or name to remove",
+						},
+					},
+					Required: []string{"name"},
+				},
+			},
+			Handler: containerRemove,
+		},
+		{
+			Tool: api.Tool{
+				Name:        "container_run",
+				Description: "Runs a Docker or Podman container with the specified image name",
+				Annotations: api.ToolAnnotations{
+					Title:           "Container: Run",
+					ReadOnlyHint:    ptr(false),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(false),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+					Properties: map[string]api.Property{
+						"imageName": {
+							Type:        "string",
+							Description: "Docker or Podman container image name to run",
+						},
+						"ports": {
+							Type:        "array",
+							Description: "Port mappings to expose on the host. Format: <hostPort>:<containerPort>. Example: 8080:80. (Optional, add only to expose ports)",
+							Items: &api.Property{
+								Type: "string",
+							},
+						},
+						"environment": {
+							Type:        "array",
+							Description: "Environment variables to set in the container. Format: <key>=<value>. Example: FOO=bar. (Optional, add only to set environment variables)",
+							Items: &api.Property{
+								Type: "string",
+							},
+						},
+					},
+					Required: []string{"imageName"},
+				},
+			},
+			Handler: containerRun,
+		},
+		{
+			Tool: api.Tool{
+				Name:        "container_stop",
+				Description: "Stops a Docker or Podman running container with the specified container ID or name",
+				Annotations: api.ToolAnnotations{
+					Title:           "Container: Stop",
+					ReadOnlyHint:    ptr(false),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(true),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+					Properties: map[string]api.Property{
+						"name": {
+							Type:        "string",
+							Description: "Docker or Podman container ID or name to stop",
+						},
+					},
+					Required: []string{"name"},
+				},
+			},
+			Handler: containerStop,
+		},
 	}
 }
 
-func (s *Server) containerInspect(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerInspect(ctr.GetArguments()["name"].(string))), nil
-}
-
-func (s *Server) containerList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerList()), nil
-}
-
-func (s *Server) containerLogs(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerLogs(ctr.GetArguments()["name"].(string))), nil
-}
-
-func (s *Server) containerRemove(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerRemove(ctr.GetArguments()["name"].(string))), nil
-}
-
-func (s *Server) containerRun(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	ports := ctr.GetArguments()["ports"]
-	portMappings := make(map[int]int)
-	if _, ok := ports.([]interface{}); ok {
-		for _, port := range ports.([]interface{}) {
-			if _, ok := port.(string); !ok {
-				continue
-			}
-			hostPort, _ := strconv.Atoi(strings.Split(port.(string), ":")[0])
-			containerPort, _ := strconv.Atoi(strings.Split(port.(string), ":")[1])
-			if hostPort > 0 && containerPort > 0 {
-				portMappings[hostPort] = containerPort
-			}
-		}
+func containerInspect(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	name, err := params.RequiredString("name")
+	if err != nil {
+		return api.NewToolCallResult("", err), nil
 	}
-	environment := ctr.GetArguments()["environment"]
-	envVariables := make([]string, 0)
-	if _, ok := environment.([]interface{}); ok && len(environment.([]interface{})) > 0 {
-		for _, env := range environment.([]interface{}) {
-			if _, ok = env.(string); !ok {
-				continue
-			}
-			envVariables = append(envVariables, env.(string))
-		}
-	}
-	return NewTextResult(s.podman.ContainerRun(ctr.GetArguments()["imageName"].(string), portMappings, envVariables)), nil
+	result, err := params.Podman.ContainerInspect(name)
+	return api.NewToolCallResult(result, err), nil
 }
 
-func (s *Server) containerStop(_ context.Context, ctr mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.ContainerStop(ctr.GetArguments()["name"].(string))), nil
+func containerList(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	result, err := params.Podman.ContainerList()
+	return api.NewToolCallResult(result, err), nil
+}
+
+func containerLogs(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	name, err := params.RequiredString("name")
+	if err != nil {
+		return api.NewToolCallResult("", err), nil
+	}
+	result, err := params.Podman.ContainerLogs(name)
+	return api.NewToolCallResult(result, err), nil
+}
+
+func containerRemove(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	name, err := params.RequiredString("name")
+	if err != nil {
+		return api.NewToolCallResult("", err), nil
+	}
+	result, err := params.Podman.ContainerRemove(name)
+	return api.NewToolCallResult(result, err), nil
+}
+
+func containerRun(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	imageName, err := params.RequiredString("imageName")
+	if err != nil {
+		return api.NewToolCallResult("", err), nil
+	}
+	portMappings := params.GetPortMappings("ports")
+	envVariables := params.GetStringArray("environment")
+	result, err := params.Podman.ContainerRun(imageName, portMappings, envVariables)
+	return api.NewToolCallResult(result, err), nil
+}
+
+func containerStop(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	name, err := params.RequiredString("name")
+	if err != nil {
+		return api.NewToolCallResult("", err), nil
+	}
+	result, err := params.Podman.ContainerStop(name)
+	return api.NewToolCallResult(result, err), nil
 }
