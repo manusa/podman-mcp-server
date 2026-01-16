@@ -11,7 +11,8 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
 - Go package layout follows the standard Go conventions:
   - `cmd/podman-mcp-server/` – main application entry point.
   - `pkg/` – libraries grouped by domain.
-    - `mcp/` - Model Context Protocol (MCP) server implementation with tool definitions for containers, images, networks, and volumes.
+    - `api/` - SDK-agnostic types for tool definitions (`ServerTool`, `ToolHandlerFunc`, `ToolHandlerParams`).
+    - `mcp/` - Model Context Protocol (MCP) server implementation using the official Go SDK, with tool definitions for containers, images, networks, and volumes.
     - `podman/` - Podman/Docker CLI abstraction layer with interface definition and CLI implementation.
     - `podman-mcp-server/cmd/` - CLI command definition using Cobra framework.
     - `version/` - Version information management.
@@ -42,11 +43,47 @@ Tools are currently organized by resource type in `pkg/mcp/`:
 
 When adding a new tool:
 1. Identify the appropriate resource file (or create a new one).
-2. Define the tool using `mcp.NewTool()` with appropriate parameters and description.
-3. Implement the handler function that executes the tool's logic.
-4. Add the tool and handler to the `tools()` and `handlers()` functions in the resource file.
-5. Register the tool in `mcp.go` by importing it in the `initTools()` function.
+2. Define the tool using `api.ServerTool` with the SDK-agnostic types from `pkg/api/`.
+3. Implement the handler function using the signature `func(ctx context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error)`.
+4. Add the tool to the `initXTools()` function in the resource file (e.g., `initContainerTools()`).
+5. If creating a new resource type, register the `initXTools()` function in `mcp.go` within `NewServer()`.
 6. Add tests for the new tool.
+
+Example tool definition:
+
+```go
+api.ServerTool{
+    Tool: api.Tool{
+        Name:        "container_list",
+        Description: "List all containers",
+        Annotations: api.ToolAnnotations{
+            Title:        "List Containers",
+            ReadOnlyHint: ptr(true),
+        },
+        InputSchema: api.InputSchema{
+            Type:       "object",
+            Properties: map[string]api.Property{
+                "all": {Type: "boolean", Description: "Show all containers"},
+            },
+        },
+    },
+    Handler: func(ctx context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+        all := params.GetString("all", "false") == "true"
+        result, err := params.Podman.ContainerList(ctx, all)
+        return api.NewToolCallResult(result, err), nil
+    },
+}
+```
+
+### SDK Architecture
+
+The project uses a layered architecture that decouples tool definitions from the MCP SDK:
+
+- **`pkg/api/`** - SDK-agnostic types (`ServerTool`, `Tool`, `ToolHandlerParams`, `ToolCallResult`)
+- **`pkg/mcp/gosdk.go`** - Conversion layer between internal types and the official Go SDK
+- **`pkg/mcp/mcp.go`** - Server wiring that registers tools with the go-sdk
+
+This design allows tool definitions to be written without depending on any specific SDK, making it easier to support multiple transports or SDK versions.
 
 ### Podman Interface
 
@@ -234,12 +271,20 @@ When adding tests:
 
 When introducing new modules run `make tidy` so that `go.mod` and `go.sum` remain tidy.
 
+Key dependencies:
+- **`github.com/modelcontextprotocol/go-sdk`** - Official MCP Go SDK for production server
+- **`github.com/mark3labs/mcp-go`** - Used for test client (SSE transport)
+- **`github.com/spf13/cobra`** - CLI framework
+- **`github.com/spf13/viper`** - Configuration management
+- **`github.com/stretchr/testify`** - Testing framework with suite support
+
 ## Coding style
 
-- Go modules target Go **1.24** (see `go.mod`).
+- Go modules target Go **1.25** (see `go.mod`).
 - Tests use `testify/suite` with the `test.McpSuite` base (see Testing section above).
 - Build and test steps are defined in the Makefile—keep them working.
 - Use interfaces for abstraction (see `pkg/podman/interface.go`).
+- Tool definitions use SDK-agnostic types from `pkg/api/` (see SDK Architecture section above).
 
 ## Distribution Methods
 
