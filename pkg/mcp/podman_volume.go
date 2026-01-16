@@ -2,18 +2,33 @@ package mcp
 
 import (
 	"context"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+
+	"github.com/manusa/podman-mcp-server/pkg/api"
 )
 
-func (s *Server) initPodmanVolume() []server.ServerTool {
-	return []server.ServerTool{
-		{mcp.NewTool("volume_list",
-			mcp.WithDescription("List all the available Docker or Podman volumes"),
-		), s.volumeList},
+func initVolumeTools() []api.ServerTool {
+	return []api.ServerTool{
+		{
+			Tool: api.Tool{
+				Name:        "volume_list",
+				Description: "List all the available Docker or Podman volumes",
+				Annotations: api.ToolAnnotations{
+					Title:           "Volume: List",
+					ReadOnlyHint:    ptr(true),
+					DestructiveHint: ptr(false),
+					IdempotentHint:  ptr(true),
+					OpenWorldHint:   ptr(false),
+				},
+				InputSchema: api.InputSchema{
+					Type: "object",
+				},
+			},
+			Handler: volumeList,
+		},
 	}
 }
 
-func (s *Server) volumeList(_ context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	return NewTextResult(s.podman.VolumeList()), nil
+func volumeList(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	result, err := params.Podman.VolumeList()
+	return api.NewToolCallResult(result, err), nil
 }

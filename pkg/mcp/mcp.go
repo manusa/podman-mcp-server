@@ -1,77 +1,71 @@
 package mcp
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"slices"
+
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/manusa/podman-mcp-server/pkg/version"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"slices"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// Server wraps the MCP server and podman client.
 type Server struct {
-	server *server.MCPServer
+	server *mcp.Server
 	podman podman.Podman
 }
 
-func NewSever() (*Server, error) {
+// NewServer creates a new MCP server with all tools registered.
+func NewServer() (*Server, error) {
 	s := &Server{
-		server: server.NewMCPServer(
-			version.BinaryName,
-			version.Version,
-			server.WithResourceCapabilities(true, true),
-			server.WithPromptCapabilities(true),
-			server.WithToolCapabilities(true),
-			server.WithLogging(),
+		server: mcp.NewServer(
+			&mcp.Implementation{
+				Name:    version.BinaryName,
+				Version: version.Version,
+			},
+			&mcp.ServerOptions{
+				Capabilities: &mcp.ServerCapabilities{
+					Tools:   &mcp.ToolCapabilities{},
+					Logging: &mcp.LoggingCapabilities{},
+				},
+			},
 		),
 	}
+
 	var err error
 	if s.podman, err = podman.NewPodman(); err != nil {
 		return nil, err
 	}
-	s.server.AddTools(slices.Concat(
-		s.initPodmanContainer(),
-		s.initPodmanImage(),
-		s.initPodmanNetwork(),
-		s.initPodmanVolume(),
-	)...)
+
+	// Register all tools
+	allTools := slices.Concat(
+		initContainerTools(),
+		initImageTools(),
+		initNetworkTools(),
+		initVolumeTools(),
+	)
+
+	for _, tool := range allTools {
+		goSdkTool, handler, err := ServerToolToGoSdkTool(s.podman, tool)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert tool %s: %w", tool.Tool.Name, err)
+		}
+		s.server.AddTool(goSdkTool, handler)
+	}
+
 	return s, nil
 }
 
-func (s *Server) ServeStdio() error {
-	return server.ServeStdio(s.server)
+// ServeStdio starts the server using STDIO transport.
+func (s *Server) ServeStdio(ctx context.Context) error {
+	return s.server.Run(ctx, &mcp.StdioTransport{})
 }
 
-func (s *Server) ServeSse(baseUrl string) *server.SSEServer {
-	options := make([]server.SSEOption, 0)
-	if baseUrl != "" {
-		options = append(options, server.WithBaseURL(baseUrl))
-	}
-	return server.NewSSEServer(s.server, options...)
-}
-
-// Server returns the underlying MCP server instance.
-func (s *Server) Server() *server.MCPServer {
-	return s.server
-}
-
-func NewTextResult(content string, err error) *mcp.CallToolResult {
-	if err != nil {
-		return &mcp.CallToolResult{
-			IsError: true,
-			Content: []mcp.Content{
-				mcp.TextContent{
-					Type: "text",
-					Text: err.Error(),
-				},
-			},
-		}
-	}
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			mcp.TextContent{
-				Type: "text",
-				Text: content,
-			},
-		},
-	}
+// ServeSse returns an HTTP handler for SSE transport.
+func (s *Server) ServeSse() *mcp.SSEHandler {
+	return mcp.NewSSEHandler(func(_ *http.Request) *mcp.Server {
+		return s.server
+	}, nil)
 }
