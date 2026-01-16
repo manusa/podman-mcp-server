@@ -25,6 +25,7 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
 - `python/` – Python package providing a script that downloads the correct platform binary from the GitHub releases page and runs it for distribution through pypi.org.
 - `testdata/` – test fixtures including a mock podman binary for testing.
 - `Makefile` – core build tasks; includes `build/*.mk` for packaging targets.
+- `server.json` – MCP Registry manifest file for publishing to the official registry.
 
 ## Feature development
 
@@ -288,7 +289,7 @@ Key dependencies:
 
 ## Distribution Methods
 
-The server is distributed as a binary executable, an npm package, and a Python package.
+The server is distributed as a binary executable, an npm package, a Python package, and is registered in the official MCP Registry.
 
 - **Native binaries** for Linux, macOS, and Windows are available in the GitHub releases.
 - An **npm** package is available at [npmjs.com](https://www.npmjs.com/package/podman-mcp-server).
@@ -296,6 +297,8 @@ The server is distributed as a binary executable, an npm package, and a Python p
 - A **Python** package is available at [pypi.org](https://pypi.org/project/podman-mcp-server/).
   It provides a script that downloads the correct platform binary from the GitHub releases page and runs it.
   It provides a convenient way to run the server using `uvx` or `python -m podman_mcp_server`.
+- The **MCP Registry** entry is available at [modelcontextprotocol.io](https://modelcontextprotocol.io).
+  The `server.json` manifest file in the repository root defines the server metadata for the registry.
 
 ### NPM Package Structure
 
@@ -325,6 +328,20 @@ make python-publish
 ```
 
 The `GIT_TAG_VERSION` variable (derived from git tags) is used for package versions.
+
+### MCP Registry Publishing
+
+The server is automatically published to the official MCP Registry after each release.
+The `.github/workflows/release-mcp-registry.yaml` workflow:
+- Triggers after the Release workflow completes successfully
+- Can be manually triggered with a tag input (e.g., `v0.0.51`)
+- Updates the version in `server.json` (stripping the `v` prefix from the tag)
+- Uses GitHub OIDC authentication with `mcp-publisher` CLI
+
+The `server.json` manifest includes:
+- Server name: `io.github.manusa/podman-mcp-server`
+- npm and PyPI package definitions with STDIO transport
+- Version placeholder (`0.0.0`) replaced at publish time
 
 ## Available MCP Tools
 

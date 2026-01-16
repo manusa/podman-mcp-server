@@ -107,3 +107,5 @@ make build
 # Run the Podman MCP server with mcp-inspector
 npx @modelcontextprotocol/inspector@latest $(pwd)/podman-mcp-server
 ```
+
+mcp-name: io.github.manusa/podman-mcp-server
