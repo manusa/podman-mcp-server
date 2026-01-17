@@ -82,5 +82,9 @@ golangci-lint:
 lint: golangci-lint ## Lint the code
 	$(GOLANGCI_LINT) run --verbose
 
+.PHONY: update-readme-tools
+update-readme-tools: ## Update the README.md file with the latest tools
+	go run ./internal/tools/update-readme/main.go README.md
+
 # Include build configuration files
 -include build/*.mk

@@ -6,12 +6,11 @@
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/manusa/podman-mcp-server?sort=semver)](https://github.com/manusa/podman-mcp-server/releases/latest)
 [![Build](https://github.com/manusa/podman-mcp-server/actions/workflows/build.yaml/badge.svg)](https://github.com/manusa/podman-mcp-server/actions/workflows/build.yaml)
 
-[✨ Features](#features) | [🚀 Getting Started](#getting-started) | [🎥 Demos](#demos) | [⚙️ Configuration](#configuration) | [🧑‍💻 Development](#development)
+[✨ Features](#features) | [🚀 Getting Started](#getting-started) | [🎥 Demos](#demos) | [⚙️ Configuration](#configuration) | [🛠️ Tools](#tools) | [🧑‍💻 Development](#development)
 
 ## ✨ Features <a id="features"></a>
 
 A powerful and flexible MCP server for container runtimes supporting Podman and Docker.
-
 
 ## 🚀 Getting Started <a id="getting-started"></a>
 
@@ -112,6 +111,75 @@ podman-mcp-server --port 8080
 # Legacy SSE-only server on port 8080 (deprecated, use --port instead)
 podman-mcp-server --sse-port 8080
 ```
+
+## 🛠️ Tools <a id="tools"></a>
+
+<!-- AVAILABLE-TOOLS-START -->
+
+<details>
+
+<summary>Container</summary>
+
+- **container_inspect** - Displays the low-level information and configuration of a Docker or Podman container with the specified container ID or name
+  - `name` (`string`) **(required)** - Docker or Podman container ID or name to display the information
+
+- **container_list** - Prints out information about the running Docker or Podman containers
+
+- **container_logs** - Displays the logs of a Docker or Podman container with the specified container ID or name
+  - `name` (`string`) **(required)** - Docker or Podman container ID or name to display the logs
+
+- **container_remove** - Removes a Docker or Podman container with the specified container ID or name (rm)
+  - `name` (`string`) **(required)** - Docker or Podman container ID or name to remove
+
+- **container_run** - Runs a Docker or Podman container with the specified image name
+  - `environment` (`array`) - Environment variables to set in the container. Format: <key>=<value>. Example: FOO=bar. (Optional, add only to set environment variables)
+  - `imageName` (`string`) **(required)** - Docker or Podman container image name to run
+  - `ports` (`array`) - Port mappings to expose on the host. Format: <hostPort>:<containerPort>. Example: 8080:80. (Optional, add only to expose ports)
+
+- **container_stop** - Stops a Docker or Podman running container with the specified container ID or name
+  - `name` (`string`) **(required)** - Docker or Podman container ID or name to stop
+
+</details>
+
+<details>
+
+<summary>Image</summary>
+
+- **image_build** - Build a Docker or Podman image from a Dockerfile, Podmanfile, or Containerfile
+  - `containerFile` (`string`) **(required)** - The absolute path to the Dockerfile, Podmanfile, or Containerfile to build the image from
+  - `imageName` (`string`) - Specifies the name which is assigned to the resulting image if the build process completes successfully (--tag, -t)
+
+- **image_list** - List the Docker or Podman images on the local machine
+
+- **image_pull** - Copies (pulls) a Docker or Podman container image from a registry onto the local machine storage
+  - `imageName` (`string`) **(required)** - Docker or Podman container image name to pull
+
+- **image_push** - Pushes a Docker or Podman container image, manifest list or image index from local machine storage to a registry
+  - `imageName` (`string`) **(required)** - Docker or Podman container image name to push
+
+- **image_remove** - Removes a Docker or Podman image from the local machine storage
+  - `imageName` (`string`) **(required)** - Docker or Podman container image name to remove
+
+</details>
+
+<details>
+
+<summary>Network</summary>
+
+- **network_list** - List all the available Docker or Podman networks
+
+</details>
+
+<details>
+
+<summary>Volume</summary>
+
+- **volume_list** - List all the available Docker or Podman volumes
+
+</details>
+
+
+<!-- AVAILABLE-TOOLS-END -->
 
 ## 🧑‍💻 Development <a id="development"></a>
 

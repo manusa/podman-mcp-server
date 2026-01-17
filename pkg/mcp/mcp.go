@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/manusa/podman-mcp-server/pkg/api"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/manusa/podman-mcp-server/pkg/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -40,14 +41,7 @@ func NewServer() (*Server, error) {
 	}
 
 	// Register all tools
-	allTools := slices.Concat(
-		initContainerTools(),
-		initImageTools(),
-		initNetworkTools(),
-		initVolumeTools(),
-	)
-
-	for _, tool := range allTools {
+	for _, tool := range AllTools() {
 		goSdkTool, handler, err := ServerToolToGoSdkTool(s.podman, tool)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert tool %s: %w", tool.Tool.Name, err)
@@ -68,6 +62,16 @@ func (s *Server) ServeSse() *mcp.SSEHandler {
 	return mcp.NewSSEHandler(func(_ *http.Request) *mcp.Server {
 		return s.server
 	}, nil)
+}
+
+// AllTools returns all registered tools for documentation purposes.
+func AllTools() []api.ServerTool {
+	return slices.Concat(
+		initContainerTools(),
+		initImageTools(),
+		initNetworkTools(),
+		initVolumeTools(),
+	)
 }
 
 // ServeStreamableHTTP returns an HTTP handler for Streamable HTTP transport.
