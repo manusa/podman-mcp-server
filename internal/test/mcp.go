@@ -60,7 +60,7 @@ func (s *McpSuite) CallTool(name string, args map[string]interface{}) (*mcp.Call
 func (s *McpSuite) WithPodmanOutput(outputLines ...string) {
 	if len(outputLines) > 0 {
 		f, _ := os.Create(path.Join(s.podmanBinaryDir, "output.txt"))
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		for _, line := range outputLines {
 			_, _ = f.WriteString(line + "\n")
 		}

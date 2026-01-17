@@ -1,6 +1,7 @@
 .idea/
 .docusaurus/
 node_modules/
+_output/
 
 .npmrc
 /podman-mcp-server
