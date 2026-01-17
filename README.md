@@ -91,9 +91,27 @@ npx podman-mcp-server@latest --help
 
 ### Configuration Options
 
-| Option       | Description                                                                              |
-|--------------|------------------------------------------------------------------------------------------|
-| `--sse-port` | Starts the MCP server in Server-Sent Event (SSE) mode and listens on the specified port. |
+| Option           | Description                                                                                      |
+|------------------|--------------------------------------------------------------------------------------------------|
+| `--port`, `-p`   | Starts the MCP server in HTTP mode with Streamable HTTP at `/mcp` and SSE at `/sse` endpoints.  |
+| `--sse-port`     | **Deprecated.** Use `--port` instead. Starts the MCP server in SSE-only mode.                   |
+| `--sse-base-url` | **Deprecated.** SSE public base URL to use when sending the endpoint message.                   |
+
+### Transport Modes
+
+The server supports multiple transport modes:
+
+1. **STDIO mode** (default) - Communicates via standard input/output
+2. **HTTP mode** (`--port`) - Modern HTTP transport with both Streamable HTTP and SSE endpoints
+3. **SSE-only mode** (`--sse-port`) - Legacy Server-Sent Events transport (deprecated)
+
+```shell
+# Start HTTP server on port 8080 (Streamable HTTP at /mcp and SSE at /sse)
+podman-mcp-server --port 8080
+
+# Legacy SSE-only server on port 8080 (deprecated, use --port instead)
+podman-mcp-server --sse-port 8080
+```
 
 ## 🧑‍💻 Development <a id="development"></a>
 
