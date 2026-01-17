@@ -3,6 +3,7 @@ package cmd
 import (
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -25,5 +26,34 @@ func TestVersion(t *testing.T) {
 	if version != "0.0.0\n" {
 		t.Fatalf("Expected version 0.0.0, got %s %v", version, err)
 		return
+	}
+}
+
+func TestHelpContainsPortFlag(t *testing.T) {
+	rootCmd.SetArgs([]string{"--help"})
+	help, err := captureOutput(rootCmd.Execute)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if !strings.Contains(help, "--port") {
+		t.Fatalf("Expected help to contain --port flag, got %s", help)
+	}
+	if !strings.Contains(help, "Streamable HTTP at /mcp and SSE at /sse") {
+		t.Fatalf("Expected help to contain Streamable HTTP endpoint description, got %s", help)
+	}
+}
+
+func TestHelpHidesDeprecatedFlags(t *testing.T) {
+	rootCmd.SetArgs([]string{"--help"})
+	help, err := captureOutput(rootCmd.Execute)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	// Deprecated flags should be hidden from help output
+	if strings.Contains(help, "--sse-port") {
+		t.Fatalf("Expected help to NOT contain deprecated --sse-port flag, got %s", help)
+	}
+	if strings.Contains(help, "--sse-base-url") {
+		t.Fatalf("Expected help to NOT contain deprecated --sse-base-url flag, got %s", help)
 	}
 }

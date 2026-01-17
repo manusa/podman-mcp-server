@@ -28,10 +28,10 @@ func (s *McpSuite) SetupTest() {
 	s.podmanBinaryDir = WithPodmanBinary(s.T())
 	s.mcpServer, err = mcpServer.NewServer()
 	s.Require().NoError(err)
-	// Use the go-sdk's SSE handler wrapped in httptest.Server
-	sseHandler := s.mcpServer.ServeSse()
-	s.mcpHttpServer = httptest.NewServer(sseHandler)
-	s.mcpClient, err = client.NewSSEMCPClient(s.mcpHttpServer.URL + "/sse")
+	// Use the go-sdk's Streamable HTTP handler wrapped in httptest.Server
+	streamableHandler := s.mcpServer.ServeStreamableHTTP()
+	s.mcpHttpServer = httptest.NewServer(streamableHandler)
+	s.mcpClient, err = client.NewStreamableHttpClient(s.mcpHttpServer.URL)
 	s.Require().NoError(err)
 	err = s.mcpClient.Start(s.T().Context())
 	s.Require().NoError(err)

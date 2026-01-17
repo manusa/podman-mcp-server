@@ -136,18 +136,20 @@ uvx podman-mcp-server@latest
 
 ### Transport Modes
 
-The server supports two transport modes:
+The server supports multiple transport modes:
 
-1. **STDIO mode** (default) - communicates via standard input/output
-2. **SSE mode** - Server-Sent Events over HTTP
+1. **STDIO mode** (default) - Communicates via standard input/output
+2. **HTTP mode** (`--port`) - Modern HTTP transport with both Streamable HTTP and SSE endpoints
+3. **SSE-only mode** (`--sse-port`) - Legacy Server-Sent Events transport (deprecated)
 
 ```bash
-# Run with SSE transport on a specific port
-./podman-mcp-server --sse-port 8080
-
-# Run with custom base URL for SSE
-./podman-mcp-server --sse-port 8080 --sse-base-url http://localhost:8080
+# Run with HTTP transport on a specific port (Streamable HTTP at /mcp and SSE at /sse)
+./podman-mcp-server --port 8080
 ```
+
+The HTTP mode uses the official MCP Go SDK's `StreamableHTTPHandler` for stateless HTTP-based communication at the `/mcp` endpoint and `SSEHandler` at the `/sse` endpoint.
+
+**Deprecated flags:** The `--sse-port` and `--sse-base-url` flags are deprecated. Use `--port` instead, which provides both Streamable HTTP and SSE endpoints.
 
 ## Tests
 

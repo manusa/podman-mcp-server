@@ -69,3 +69,10 @@ func (s *Server) ServeSse() *mcp.SSEHandler {
 		return s.server
 	}, nil)
 }
+
+// ServeStreamableHTTP returns an HTTP handler for Streamable HTTP transport.
+func (s *Server) ServeStreamableHTTP() *mcp.StreamableHTTPHandler {
+	return mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
+		return s.server
+	}, nil)
+}
