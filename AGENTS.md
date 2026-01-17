@@ -287,6 +287,105 @@ Key dependencies:
 - Use interfaces for abstraction (see `pkg/podman/interface.go`).
 - Tool definitions use SDK-agnostic types from `pkg/api/` (see SDK Architecture section above).
 
+## Commit Message Style
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/). All commits must be signed off with `--signoff`.
+
+### Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+
+Signed-off-by: Name <email>
+```
+
+### Commit Types
+
+| Type | Description | Semantic Version Impact |
+|------|-------------|------------------------|
+| `feat` | A new feature | MINOR |
+| `fix` | A bug fix or performance improvement | PATCH |
+| `refactor` | A code change that neither fixes a bug nor adds a feature | PATCH |
+| `test` | Adding missing tests or correcting existing tests | PATCH |
+| `chore` | Maintenance tasks (with scope for specifics) | PATCH |
+| `revert` | Reverts a previous commit | PATCH |
+
+### Chore Scopes
+
+Use `chore(<scope>)` for maintenance tasks:
+
+| Scope | Description |
+|-------|-------------|
+| `docs` | Documentation only changes |
+| `style` | Code style changes (white-space, formatting, etc.) |
+| `build` | Changes that affect the build system or external dependencies |
+| `ci` | Changes to CI configuration files and scripts |
+| `deps` | Dependency updates |
+
+### Guidelines
+
+1. **Description (subject line)**:
+   - Use imperative mood ("add" not "added" or "adds")
+   - Don't capitalize the first letter
+   - No period at the end
+   - Keep under 50 characters (max 72)
+
+2. **Scope** (optional but recommended):
+   - Use lowercase
+   - Examples: `api`, `mcp`, `cli`, `podman`, `docs`
+
+3. **Body** (optional):
+   - Wrap at 72 characters
+   - Explain **what** and **why**, not how
+   - Use blank line to separate from subject
+
+4. **Footer** (optional):
+   - Reference issues: `Fixes #123`, `Closes #456`
+   - Breaking changes: `BREAKING CHANGE: description`
+
+### Breaking Changes
+
+Add `!` after the type/scope and include a BREAKING CHANGE footer:
+
+```
+feat(api)!: remove deprecated endpoints
+
+BREAKING CHANGE: The /v1/users endpoint has been removed.
+
+Signed-off-by: Name <email>
+```
+
+### Examples
+
+```
+feat(mcp): add container exec tool
+```
+
+```
+fix(podman): handle empty container list response
+```
+
+```
+chore(docs): update installation instructions
+```
+
+```
+chore(ci): add caching to GitHub Actions workflow
+```
+
+```
+refactor(api): extract tool registration into separate module
+
+The tool registration logic was duplicated across multiple files.
+This consolidates it into a single utility for better maintainability.
+
+Signed-off-by: Name <email>
+```
+
 ## Distribution Methods
 
 The server is distributed as a binary executable, an npm package, a Python package, and is registered in the official MCP Registry.
