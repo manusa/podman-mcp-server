@@ -83,6 +83,11 @@ func (m *MockPodmanServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			handler(w, r)
 			return
 		}
+		// Try suffix matching for paths with multi-segment names (e.g., /images/example.com/org/image:tag/push)
+		if matchPathWithSuffix(pattern, r.Method+" "+normalizedPath) {
+			handler(w, r)
+			return
+		}
 		// Also try HEAD -> GET fallback for pattern matching
 		if r.Method == "HEAD" {
 			if matchPath(pattern, "GET "+path) || matchPath(pattern, "GET "+normalizedPath) {
@@ -152,6 +157,7 @@ func (m *MockPodmanServer) ClearRequests() {
 
 // HasRequest checks if a request with the given method and path pattern was made.
 // It also checks normalized paths (with API version prefix stripped).
+// Supports suffix matching for patterns with placeholders spanning multiple segments.
 func (m *MockPodmanServer) HasRequest(method, pathPattern string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -165,6 +171,10 @@ func (m *MockPodmanServer) HasRequest(method, pathPattern string) bool {
 		if req.Method == method && matchPathSimple(pathPattern, normalizedPath) {
 			return true
 		}
+		// Try suffix matching for multi-segment placeholders (e.g., image names with slashes)
+		if req.Method == method && matchPathWithSuffixSimple(pathPattern, normalizedPath) {
+			return true
+		}
 		// For HEAD requests, also match against GET pattern
 		if req.Method == "HEAD" && method == "GET" {
 			if matchPathSimple(pathPattern, req.Path) || matchPathSimple(pathPattern, normalizedPath) {
@@ -173,6 +183,52 @@ func (m *MockPodmanServer) HasRequest(method, pathPattern string) bool {
 		}
 	}
 	return false
+}
+
+// matchPathWithSuffixSimple is like matchPathWithSuffix but for path-only patterns (no method prefix).
+func matchPathWithSuffixSimple(pattern, path string) bool {
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(path, "/")
+
+	// Path must have at least as many parts as the pattern
+	if len(pathParts) < len(patternParts) {
+		return false
+	}
+
+	// Find where the placeholder is in the pattern
+	placeholderIdx := -1
+	for i, pp := range patternParts {
+		if strings.HasPrefix(pp, "{") && strings.HasSuffix(pp, "}") {
+			placeholderIdx = i
+			break
+		}
+	}
+
+	// If no placeholder, use regular matching
+	if placeholderIdx == -1 {
+		return false
+	}
+
+	// Check prefix (parts before placeholder) match exactly
+	for i := 0; i < placeholderIdx; i++ {
+		if patternParts[i] != pathParts[i] {
+			return false
+		}
+	}
+
+	// Check suffix (parts after placeholder) match exactly from the end
+	suffixLen := len(patternParts) - placeholderIdx - 1
+	if suffixLen > 0 {
+		for i := 0; i < suffixLen; i++ {
+			patternIdx := len(patternParts) - 1 - i
+			pathIdx := len(pathParts) - 1 - i
+			if patternParts[patternIdx] != pathParts[pathIdx] {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // matchPathSimple checks if a path matches a pattern (supports {placeholder} syntax).
@@ -215,6 +271,55 @@ func matchPath(pattern, path string) bool {
 			return false
 		}
 	}
+	return true
+}
+
+// matchPathWithSuffix checks if a request path matches a pattern where the placeholder
+// can span multiple path segments. This is useful for image names that contain slashes.
+// Pattern example: "POST /libpod/images/{name}/push"
+// Path example: "POST /libpod/images/example.com/org/image:tag/push"
+func matchPathWithSuffix(pattern, path string) bool {
+	patternParts := strings.Split(pattern, "/")
+	pathParts := strings.Split(path, "/")
+
+	// Path must have at least as many parts as the pattern
+	if len(pathParts) < len(patternParts) {
+		return false
+	}
+
+	// Find where the placeholder is in the pattern
+	placeholderIdx := -1
+	for i, pp := range patternParts {
+		if strings.HasPrefix(pp, "{") && strings.HasSuffix(pp, "}") {
+			placeholderIdx = i
+			break
+		}
+	}
+
+	// If no placeholder, use regular matching
+	if placeholderIdx == -1 {
+		return false
+	}
+
+	// Check prefix (parts before placeholder) match exactly
+	for i := 0; i < placeholderIdx; i++ {
+		if patternParts[i] != pathParts[i] {
+			return false
+		}
+	}
+
+	// Check suffix (parts after placeholder) match exactly from the end
+	suffixLen := len(patternParts) - placeholderIdx - 1
+	if suffixLen > 0 {
+		for i := 0; i < suffixLen; i++ {
+			patternIdx := len(patternParts) - 1 - i
+			pathIdx := len(pathParts) - 1 - i
+			if patternParts[patternIdx] != pathParts[pathIdx] {
+				return false
+			}
+		}
+	}
+
 	return true
 }
 

@@ -194,11 +194,20 @@ func (s *MockServerMcpSuite) WithNetworkList(networks []NetworkListResponse) {
 }
 
 // WithVolumeList sets up the mock server to return a list of volumes.
-func (s *MockServerMcpSuite) WithVolumeList(volumes VolumeListResponse) {
-	handler := func(w http.ResponseWriter, _ *http.Request) {
+// The Libpod API returns a plain array of volumes, while Docker API wraps in an object.
+func (s *MockServerMcpSuite) WithVolumeList(volumes []VolumeResponse) {
+	// Libpod handler returns plain array
+	libpodHandler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, volumes)
 	}
-	s.MockServer.HandleFunc("GET", "/libpod/volumes/json", "/volumes", handler)
+	// Docker handler returns wrapped object
+	dockerHandler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, VolumeListResponse{Volumes: volumes})
+	}
+	s.MockServer.Handle("GET", "/libpod/volumes/json", libpodHandler)
+	s.MockServer.Handle("GET", "/volumes", dockerHandler)
+	s.MockServer.Handle("GET", "/v1.40/volumes", dockerHandler)
+	s.MockServer.Handle("GET", "/v1.41/volumes", dockerHandler)
 }
 
 // WithError sets up the mock server to return an error for a specific endpoint.
@@ -298,11 +307,37 @@ func (s *MockServerMcpSuite) WithImagePull(imageID string) {
 }
 
 // WithImageRemove sets up the mock server to handle image removal.
+// The Libpod API uses /libpod/images/remove with image names as query params.
 func (s *MockServerMcpSuite) WithImageRemove(imageID string) {
-	handler := func(w http.ResponseWriter, _ *http.Request) {
+	// Libpod API handler - returns LibpodImagesRemoveReport
+	libpodHandler := func(w http.ResponseWriter, _ *http.Request) {
+		// Response format: {"Deleted": ["sha256:..."], "Untagged": [...], "Errors": [...], "ExitCode": 0}
+		WriteJSON(w, map[string]any{
+			"Deleted":  []string{imageID},
+			"Untagged": []string{},
+			"Errors":   []string{},
+			"ExitCode": 0,
+		})
+	}
+	// Docker API handler - returns array of ImageRemoveResponse
+	dockerHandler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, []ImageRemoveResponse{
 			{Deleted: imageID},
 		})
 	}
-	s.MockServer.HandleFunc("DELETE", "/libpod/images/{name}", "/images/{name}", handler)
+	s.MockServer.Handle("DELETE", "/libpod/images/remove", libpodHandler)
+	s.MockServer.Handle("DELETE", "/images/{name}", dockerHandler)
+	s.MockServer.Handle("DELETE", "/v1.40/images/{name}", dockerHandler)
+	s.MockServer.Handle("DELETE", "/v1.41/images/{name}", dockerHandler)
+}
+
+// WithImagePush sets up the mock server to handle image push.
+func (s *MockServerMcpSuite) WithImagePush() {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		// Podman sends streaming JSON responses during push
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Empty response body is acceptable for push
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/images/{name}/push", "/images/{name}/push", handler)
 }
