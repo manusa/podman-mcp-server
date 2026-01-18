@@ -45,6 +45,12 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+      - name: Install Podman (macOS)
+        if: runner.os == 'macOS'
+        run: brew install podman
+      - name: Install Podman (Windows)
+        if: runner.os == 'Windows'
+        run: choco install podman-cli -y
       - name: Build
         run: make build
       - name: Test
