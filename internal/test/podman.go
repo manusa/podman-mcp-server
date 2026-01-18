@@ -48,15 +48,15 @@ func IsPodmanAvailable() bool {
 		return false
 	}
 	// Verify it's actually podman and not our fake binary
-	output, err := exec.Command(filePath, "version", "--format", "{{.Client.Version}}").CombinedOutput()
+	// Use --version instead of version subcommand to avoid needing a running machine/daemon
+	output, err := exec.Command(filePath, "--version").CombinedOutput()
 	if err != nil {
 		return false
 	}
-	// Real podman outputs a version number like "4.0.0"
-	// Note: podman may output warnings before the version, so get the last line
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	version := strings.TrimSpace(lines[len(lines)-1])
-	return len(version) > 0 && version[0] >= '0' && version[0] <= '9'
+	// Real podman outputs "podman version X.Y.Z" (may include additional info after)
+	// Our fake binary would output something different
+	outputStr := strings.TrimSpace(string(output))
+	return strings.HasPrefix(outputStr, "podman version ")
 }
 
 // WithContainerHost sets the CONTAINER_HOST environment variable to point to the mock server.
