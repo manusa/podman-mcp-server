@@ -114,11 +114,11 @@ type VersionInfo struct {
 }
 
 // ContainerListResponse represents a container in the list response.
-// Compatible with both Libpod and Docker APIs.
+// Uses interface{} for Created to support both Libpod (time string) and Docker (int64).
 type ContainerListResponse struct {
 	AutoRemove bool              `json:"AutoRemove,omitempty"`
 	Command    []string          `json:"Command,omitempty"`
-	Created    int64             `json:"Created"`
+	Created    interface{}       `json:"Created"` // time.Time string for Libpod, int64 for Docker
 	CreatedAt  string            `json:"CreatedAt,omitempty"`
 	ExitCode   int               `json:"ExitCode,omitempty"`
 	Exited     bool              `json:"Exited,omitempty"`

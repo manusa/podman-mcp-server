@@ -17,6 +17,7 @@ import (
 // Embed this suite in your test suites to get MCP client helpers.
 type McpSuite struct {
 	suite.Suite
+	originalEnv     []string
 	podmanBinaryDir string
 	mcpServer       *mcpServer.Server
 	mcpHttpServer   *httptest.Server
@@ -25,6 +26,7 @@ type McpSuite struct {
 
 // SetupTest initializes the MCP server and client before each test.
 func (s *McpSuite) SetupTest() {
+	s.originalEnv = os.Environ()
 	var err error
 	s.podmanBinaryDir = WithPodmanBinary(s.T())
 	s.mcpServer, err = mcpServer.NewServer()
@@ -47,6 +49,7 @@ func (s *McpSuite) SetupTest() {
 func (s *McpSuite) TearDownTest() {
 	_ = s.mcpClient.Close()
 	s.mcpHttpServer.Close()
+	RestoreEnv(s.originalEnv)
 }
 
 // CallTool calls an MCP tool by name with the given arguments.
@@ -86,26 +89,27 @@ func (s *McpSuite) ListTools() (*mcp.ListToolsResult, error) {
 // If neither is available, tests using this suite will be skipped.
 type MockServerMcpSuite struct {
 	suite.Suite
+	originalEnv   []string
 	MockServer    *MockPodmanServer
 	mcpServer     *mcpServer.Server
 	mcpHttpServer *httptest.Server
 	mcpClient     *client.Client
-	cleanupEnv    func()
 }
 
 // SetupTest initializes the mock server, MCP server, and client before each test.
 func (s *MockServerMcpSuite) SetupTest() {
-	// Check if real podman or docker is available
-	s.Require().True(IsPodmanAvailable() || IsDockerAvailable(),
-		"neither podman nor docker CLI is available - install one to run these tests")
+	// Check if real podman is available
+	s.Require().True(IsPodmanAvailable(),
+		"podman CLI is not available - install podman to run these tests")
 
+	s.originalEnv = os.Environ()
 	var err error
 
 	// Start mock Podman API server
 	s.MockServer = NewMockPodmanServer()
 
-	// Set CONTAINER_HOST/DOCKER_HOST to point to mock server
-	s.cleanupEnv = WithContainerHost(s.T(), s.MockServer.URL())
+	// Set CONTAINER_HOST to point to mock server
+	WithContainerHost(s.T(), s.MockServer.URL())
 
 	// Create MCP server (it will use the real podman binary which talks to mock server)
 	s.mcpServer, err = mcpServer.NewServer()
@@ -141,9 +145,7 @@ func (s *MockServerMcpSuite) TearDownTest() {
 	if s.MockServer != nil {
 		s.MockServer.Close()
 	}
-	if s.cleanupEnv != nil {
-		s.cleanupEnv()
-	}
+	RestoreEnv(s.originalEnv)
 }
 
 // CallTool calls an MCP tool by name with the given arguments.
@@ -205,4 +207,102 @@ func (s *MockServerMcpSuite) WithError(method, libpodPath, dockerPath string, st
 		WriteError(w, statusCode, message)
 	}
 	s.MockServer.HandleFunc(method, libpodPath, dockerPath, handler)
+}
+
+// WithContainerLogs sets up the mock server to return container logs.
+// The logs are encoded in the docker multiplexed stream format for non-TTY containers.
+func (s *MockServerMcpSuite) WithContainerLogs(logs string) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		// Docker logs use multiplexed stream format for non-TTY containers
+		// Format: [STREAM_TYPE][0][0][0][SIZE_BE_32][DATA...]
+		// STREAM_TYPE: 0=stdin, 1=stdout, 2=stderr
+		frame := make([]byte, 8+len(logs))
+		frame[0] = 1 // stdout
+		frame[4] = byte(len(logs) >> 24)
+		frame[5] = byte(len(logs) >> 16)
+		frame[6] = byte(len(logs) >> 8)
+		frame[7] = byte(len(logs))
+		copy(frame[8:], logs)
+		_, _ = w.Write(frame)
+	}
+	s.MockServer.HandleFunc("GET", "/libpod/containers/{id}/logs", "/containers/{id}/logs", handler)
+}
+
+// WithContainerCreate sets up the mock server to handle container creation.
+func (s *MockServerMcpSuite) WithContainerCreate(containerID string) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, ContainerCreateResponse{
+			ID:       containerID,
+			Warnings: []string{},
+		})
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/containers/create", "/containers/create", handler)
+}
+
+// WithContainerStart sets up the mock server to handle container start.
+func (s *MockServerMcpSuite) WithContainerStart() {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/containers/{id}/start", "/containers/{id}/start", handler)
+}
+
+// WithContainerStop sets up the mock server to handle container stop.
+func (s *MockServerMcpSuite) WithContainerStop() {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/containers/{id}/stop", "/containers/{id}/stop", handler)
+}
+
+// WithContainerRemove sets up the mock server to handle container removal.
+func (s *MockServerMcpSuite) WithContainerRemove() {
+	libpodHandler := func(w http.ResponseWriter, _ *http.Request) {
+		// Libpod API expects a JSON array of RmReport
+		WriteJSON(w, []map[string]interface{}{
+			{"Id": "abc123def456"},
+		})
+	}
+	dockerHandler := func(w http.ResponseWriter, _ *http.Request) {
+		// Docker API expects HTTP 204 No Content
+		w.WriteHeader(http.StatusNoContent)
+	}
+	s.MockServer.Handle("DELETE", "/libpod/containers/{id}", libpodHandler)
+	s.MockServer.Handle("DELETE", "/containers/{id}", dockerHandler)
+	s.MockServer.Handle("DELETE", "/v1.40/containers/{id}", dockerHandler)
+	s.MockServer.Handle("DELETE", "/v1.41/containers/{id}", dockerHandler)
+}
+
+// WithContainerWait sets up the mock server to handle container wait.
+func (s *MockServerMcpSuite) WithContainerWait(exitCode int) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, map[string]interface{}{
+			"StatusCode": exitCode,
+		})
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/containers/{id}/wait", "/containers/{id}/wait", handler)
+}
+
+// WithImagePull sets up the mock server to handle image pull.
+func (s *MockServerMcpSuite) WithImagePull(imageID string) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		// Podman sends streaming JSON responses during pull
+		w.Header().Set("Content-Type", "application/json")
+		WriteJSON(w, ImagePullResponse{
+			ID:     imageID,
+			Status: "Download complete",
+		})
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/images/pull", "/images/create", handler)
+}
+
+// WithImageRemove sets up the mock server to handle image removal.
+func (s *MockServerMcpSuite) WithImageRemove(imageID string) {
+	handler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, []ImageRemoveResponse{
+			{Deleted: imageID},
+		})
+	}
+	s.MockServer.HandleFunc("DELETE", "/libpod/images/{name}", "/images/{name}", handler)
 }
