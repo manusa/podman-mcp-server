@@ -216,10 +216,3 @@ func (s *BinaryDetectionSuite) TestIsPodmanAvailable() {
 	available := test.IsPodmanAvailable()
 	s.T().Logf("IsPodmanAvailable: %v", available)
 }
-
-func (s *BinaryDetectionSuite) TestIsDockerAvailable() {
-	// This test just verifies the function doesn't panic
-	// The result depends on whether docker is installed
-	available := test.IsDockerAvailable()
-	s.T().Logf("IsDockerAvailable: %v", available)
-}

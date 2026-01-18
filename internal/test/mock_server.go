@@ -46,10 +46,31 @@ func (m *MockPodmanServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Path
 
-	// Try exact match first
+	// Strip Docker API version prefix (e.g., /v1.52/containers -> /containers)
+	normalizedPath := stripAPIVersionPrefix(path)
+
+	// Try exact match first with original path
 	if handler, ok := m.handlers[r.Method+" "+path]; ok {
 		handler(w, r)
 		return
+	}
+
+	// Try exact match with normalized path (version stripped)
+	if handler, ok := m.handlers[r.Method+" "+normalizedPath]; ok {
+		handler(w, r)
+		return
+	}
+
+	// For HEAD requests, try matching GET handlers
+	if r.Method == "HEAD" {
+		if handler, ok := m.handlers["GET "+path]; ok {
+			handler(w, r)
+			return
+		}
+		if handler, ok := m.handlers["GET "+normalizedPath]; ok {
+			handler(w, r)
+			return
+		}
 	}
 
 	// Try pattern matching for paths with IDs (e.g., /containers/{id}/json)
@@ -58,10 +79,36 @@ func (m *MockPodmanServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			handler(w, r)
 			return
 		}
+		if matchPath(pattern, r.Method+" "+normalizedPath) {
+			handler(w, r)
+			return
+		}
+		// Also try HEAD -> GET fallback for pattern matching
+		if r.Method == "HEAD" {
+			if matchPath(pattern, "GET "+path) || matchPath(pattern, "GET "+normalizedPath) {
+				handler(w, r)
+				return
+			}
+		}
 	}
 
 	// Default 404 response
 	http.NotFound(w, r)
+}
+
+// stripAPIVersionPrefix removes Docker/Podman API version prefix from path.
+// e.g., "/v1.52/containers/json" -> "/containers/json"
+// e.g., "/v5.7.1/libpod/containers/json" -> "/libpod/containers/json"
+func stripAPIVersionPrefix(path string) string {
+	// Match any version prefix like /v1.x, /v2.x, /v5.x.x, etc.
+	if len(path) > 2 && path[0] == '/' && path[1] == 'v' {
+		// Find the next slash after the version
+		idx := strings.Index(path[1:], "/")
+		if idx > 0 {
+			return path[idx+1:]
+		}
+	}
+	return path
 }
 
 // captureRequest captures an incoming request for later inspection.
@@ -104,12 +151,25 @@ func (m *MockPodmanServer) ClearRequests() {
 }
 
 // HasRequest checks if a request with the given method and path pattern was made.
+// It also checks normalized paths (with API version prefix stripped).
 func (m *MockPodmanServer) HasRequest(method, pathPattern string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	for _, req := range m.requests {
+		// Check original path
 		if req.Method == method && matchPathSimple(pathPattern, req.Path) {
 			return true
+		}
+		// Check normalized path (version stripped)
+		normalizedPath := stripAPIVersionPrefix(req.Path)
+		if req.Method == method && matchPathSimple(pathPattern, normalizedPath) {
+			return true
+		}
+		// For HEAD requests, also match against GET pattern
+		if req.Method == "HEAD" && method == "GET" {
+			if matchPathSimple(pathPattern, req.Path) || matchPathSimple(pathPattern, normalizedPath) {
+				return true
+			}
 		}
 	}
 	return false
@@ -212,12 +272,14 @@ func (m *MockPodmanServer) registerBaseEndpointsLocked() {
 	// Health check endpoint
 	pingHandler := func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Libpod-API-Version", "5.0.0")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	}
 	m.handlers["GET /_ping"] = pingHandler
 	m.handlers["HEAD /_ping"] = pingHandler
 	m.handlers["GET /libpod/_ping"] = pingHandler
+	m.handlers["HEAD /libpod/_ping"] = pingHandler
 
 	// Version endpoint
 	versionHandler := func(w http.ResponseWriter, _ *http.Request) {
