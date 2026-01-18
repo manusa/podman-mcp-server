@@ -11,17 +11,17 @@ import (
 	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-// ContainerToolsSuite tests container tools using the mock Podman API server.
+// ContainerSuite tests container tools using the mock Podman API server.
 // These tests use the real podman CLI binary communicating with a mocked backend.
-type ContainerToolsSuite struct {
-	test.MockServerMcpSuite
+type ContainerSuite struct {
+	test.McpSuite
 }
 
-func TestContainerTools(t *testing.T) {
-	suite.Run(t, new(ContainerToolsSuite))
+func TestContainerSuite(t *testing.T) {
+	suite.Run(t, new(ContainerSuite))
 }
 
-func (s *ContainerToolsSuite) TestContainerList() {
+func (s *ContainerSuite) TestContainerList() {
 	s.WithContainerList([]test.ContainerListResponse{
 		{
 			ID:        "abc123def456",
@@ -74,7 +74,25 @@ func (s *ContainerToolsSuite) TestContainerList() {
 	})
 }
 
-func (s *ContainerToolsSuite) TestContainerInspect() {
+func (s *ContainerSuite) TestContainerListEmpty() {
+	s.WithContainerList([]test.ContainerListResponse{})
+
+	toolResult, err := s.CallTool("container_list", map[string]interface{}{})
+
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+
+	s.Run("returns empty or headers-only output", func() {
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		// Some podman versions print headers even when empty, others don't
+		// Just verify no container data is present
+		s.NotContains(text, "test-container", "should not contain container data")
+	})
+}
+
+func (s *ContainerSuite) TestContainerInspect() {
 	s.WithContainerInspect(test.ContainerInspectResponse{
 		ID:        "abc123def456",
 		Name:      "/test-container",
@@ -116,7 +134,26 @@ func (s *ContainerToolsSuite) TestContainerInspect() {
 	})
 }
 
-func (s *ContainerToolsSuite) TestContainerLogs() {
+func (s *ContainerSuite) TestContainerInspectNotFound() {
+	s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
+		404, "no such container: nonexistent")
+
+	toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
+		"name": "nonexistent",
+	})
+
+	s.Run("returns error", func() {
+		s.NoError(err) // MCP call succeeds
+		s.True(toolResult.IsError, "tool result should indicate an error")
+	})
+
+	s.Run("error message indicates failure", func() {
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+}
+
+func (s *ContainerSuite) TestContainerLogs() {
 	// Podman CLI first inspects the container before fetching logs
 	s.WithContainerInspect(test.ContainerInspectResponse{
 		ID:        "abc123def456",
@@ -160,7 +197,7 @@ func (s *ContainerToolsSuite) TestContainerLogs() {
 	})
 }
 
-func (s *ContainerToolsSuite) TestContainerStop() {
+func (s *ContainerSuite) TestContainerStop() {
 	// Podman first looks up container by name, then inspects, then stops
 	s.WithContainerList([]test.ContainerListResponse{
 		{
@@ -200,7 +237,7 @@ func (s *ContainerToolsSuite) TestContainerStop() {
 	})
 }
 
-func (s *ContainerToolsSuite) TestContainerRemove() {
+func (s *ContainerSuite) TestContainerRemove() {
 	// Podman first looks up container by name, then inspects, then removes
 	s.WithContainerList([]test.ContainerListResponse{
 		{
@@ -240,84 +277,63 @@ func (s *ContainerToolsSuite) TestContainerRemove() {
 	})
 }
 
-func (s *ContainerToolsSuite) TestContainerListEmpty() {
-	s.WithContainerList([]test.ContainerListResponse{})
+func (s *ContainerSuite) TestContainerRunBasic() {
+	s.WithContainerRun("container123")
 
-	toolResult, err := s.CallTool("container_list", map[string]interface{}{})
+	toolResult, err := s.CallTool("container_run", map[string]interface{}{
+		"imageName": "example.com/org/image:tag",
+	})
 
 	s.Run("returns OK", func() {
 		s.NoError(err)
 		s.False(toolResult.IsError)
 	})
 
-	s.Run("returns empty or headers-only output", func() {
+	s.Run("returns container ID", func() {
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		// Some podman versions print headers even when empty, others don't
-		// Just verify no container data is present
-		s.NotContains(text, "test-container", "should not contain container data")
+		s.Contains(text, "container123")
+	})
+
+	s.Run("mock server received create request", func() {
+		s.True(s.MockServer.HasRequest("POST", "/libpod/containers/create"))
+	})
+
+	s.Run("mock server received start request", func() {
+		s.True(s.MockServer.HasRequest("POST", "/libpod/containers/{id}/start"))
 	})
 }
 
-func (s *ContainerToolsSuite) TestContainerInspectNotFound() {
-	s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
-		404, "no such container: nonexistent")
+func (s *ContainerSuite) TestContainerRunWithPorts() {
+	s.WithContainerRun("container-with-ports")
 
-	toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
-		"name": "nonexistent",
-	})
-
-	s.Run("returns error", func() {
-		s.NoError(err) // MCP call succeeds
-		s.True(toolResult.IsError, "tool result should indicate an error")
-	})
-
-	s.Run("error message indicates failure", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.NotEmpty(text, "error message should not be empty")
-	})
-}
-
-// ContainerRunSuite tests the container_run tool using a fake podman binary.
-// This suite validates that CLI arguments are correctly constructed.
-type ContainerRunSuite struct {
-	test.McpSuite
-}
-
-func TestContainerRun(t *testing.T) {
-	suite.Run(t, new(ContainerRunSuite))
-}
-
-func (s *ContainerRunSuite) TestContainerRunBasic() {
-	toolResult, err := s.CallTool("container_run", map[string]interface{}{
-		"imageName": "example.com/org/image:tag",
-	})
-	s.NoError(err)
-	s.False(toolResult.IsError)
-	text := toolResult.Content[0].(mcp.TextContent).Text
-	s.Regexp("example.com/org/image:tag\n$", text)
-	s.Contains(text, " -d ", "should run in detached mode")
-	s.Contains(text, " --publish-all ", "should publish all exposed ports")
-}
-
-func (s *ContainerRunSuite) TestContainerRunWithPorts() {
 	toolResult, err := s.CallTool("container_run", map[string]interface{}{
 		"imageName": "example.com/org/image:tag",
 		"ports": []interface{}{
-			1337, // Invalid entry to test
+			1337, // Invalid entry - should be ignored
 			"8080:80",
 			"8082:8082",
 			"8443:443",
 		},
 	})
-	s.NoError(err)
-	s.False(toolResult.IsError)
-	text := toolResult.Content[0].(mcp.TextContent).Text
-	s.Contains(text, " --publish=8080:80 ")
-	s.Contains(text, " --publish=8082:8082 ")
-	s.Contains(text, " --publish=8443:443 ")
+
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+
+	s.Run("create request includes port mappings", func() {
+		req := s.GetCapturedRequest("POST", "/libpod/containers/create")
+		s.Require().NotNil(req, "create request should be captured")
+		// Verify port mappings are in the request body
+		s.Contains(req.Body, `"host_port":8080`, "should have port 8080 mapping")
+		s.Contains(req.Body, `"host_port":8082`, "should have port 8082 mapping")
+		s.Contains(req.Body, `"host_port":8443`, "should have port 8443 mapping")
+	})
 }
 
-func (s *ContainerRunSuite) TestContainerRunWithEnvironment() {
+func (s *ContainerSuite) TestContainerRunWithEnvironment() {
+	s.WithContainerRun("container-with-env")
+
 	toolResult, err := s.CallTool("container_run", map[string]interface{}{
 		"imageName": "example.com/org/image:tag",
 		"ports":     []interface{}{"8080:80"},
@@ -326,9 +342,17 @@ func (s *ContainerRunSuite) TestContainerRunWithEnvironment() {
 			"FOO=BAR",
 		},
 	})
-	s.NoError(err)
-	s.False(toolResult.IsError)
-	text := toolResult.Content[0].(mcp.TextContent).Text
-	s.Contains(text, " --env KEY=VALUE ")
-	s.Contains(text, " --env FOO=BAR ")
+
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+
+	s.Run("create request includes environment variables", func() {
+		req := s.GetCapturedRequest("POST", "/libpod/containers/create")
+		s.Require().NotNil(req, "create request should be captured")
+		// Verify environment variables are in the request body
+		s.Contains(req.Body, `"KEY":"VALUE"`, "should have KEY=VALUE env var")
+		s.Contains(req.Body, `"FOO":"BAR"`, "should have FOO=BAR env var")
+	})
 }

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -13,70 +12,7 @@ import (
 	mcpServer "github.com/manusa/podman-mcp-server/pkg/mcp"
 )
 
-// McpSuite is a base test suite for MCP server tests.
-// Embed this suite in your test suites to get MCP client helpers.
-type McpSuite struct {
-	suite.Suite
-	originalEnv     []string
-	podmanBinaryDir string
-	mcpServer       *mcpServer.Server
-	mcpHttpServer   *httptest.Server
-	mcpClient       *client.Client
-}
-
-// SetupTest initializes the MCP server and client before each test.
-func (s *McpSuite) SetupTest() {
-	s.originalEnv = os.Environ()
-	var err error
-	s.podmanBinaryDir = WithPodmanBinary(s.T())
-	s.mcpServer, err = mcpServer.NewServer()
-	s.Require().NoError(err)
-	// Use the go-sdk's Streamable HTTP handler wrapped in httptest.Server
-	streamableHandler := s.mcpServer.ServeStreamableHTTP()
-	s.mcpHttpServer = httptest.NewServer(streamableHandler)
-	s.mcpClient, err = client.NewStreamableHttpClient(s.mcpHttpServer.URL)
-	s.Require().NoError(err)
-	err = s.mcpClient.Start(s.T().Context())
-	s.Require().NoError(err)
-	initRequest := mcp.InitializeRequest{}
-	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-	initRequest.Params.ClientInfo = mcp.Implementation{Name: "test", Version: "1.33.7"}
-	_, err = s.mcpClient.Initialize(s.T().Context(), initRequest)
-	s.Require().NoError(err)
-}
-
-// TearDownTest cleans up the MCP server and client after each test.
-func (s *McpSuite) TearDownTest() {
-	_ = s.mcpClient.Close()
-	s.mcpHttpServer.Close()
-	RestoreEnv(s.originalEnv)
-}
-
-// CallTool calls an MCP tool by name with the given arguments.
-func (s *McpSuite) CallTool(name string, args map[string]interface{}) (*mcp.CallToolResult, error) {
-	callToolRequest := mcp.CallToolRequest{}
-	callToolRequest.Params.Name = name
-	callToolRequest.Params.Arguments = args
-	return s.mcpClient.CallTool(s.T().Context(), callToolRequest)
-}
-
-// WithPodmanOutput sets up mock output for the fake podman binary.
-func (s *McpSuite) WithPodmanOutput(outputLines ...string) {
-	if len(outputLines) > 0 {
-		f, _ := os.Create(path.Join(s.podmanBinaryDir, "output.txt"))
-		defer func() { _ = f.Close() }()
-		for _, line := range outputLines {
-			_, _ = f.WriteString(line + "\n")
-		}
-	}
-}
-
-// ListTools returns the list of available MCP tools.
-func (s *McpSuite) ListTools() (*mcp.ListToolsResult, error) {
-	return s.mcpClient.ListTools(s.T().Context(), mcp.ListToolsRequest{})
-}
-
-// MockServerMcpSuite is a test suite that uses a mock Podman API server
+// McpSuite is a test suite that uses a mock Podman API server
 // instead of a fake podman binary. This allows testing with the real
 // podman/docker CLI binary communicating with a mocked backend.
 //
@@ -87,7 +23,7 @@ func (s *McpSuite) ListTools() (*mcp.ListToolsResult, error) {
 //
 // Note: This suite requires a real podman or docker binary to be available.
 // If neither is available, tests using this suite will be skipped.
-type MockServerMcpSuite struct {
+type McpSuite struct {
 	suite.Suite
 	originalEnv   []string
 	MockServer    *MockPodmanServer
@@ -97,7 +33,7 @@ type MockServerMcpSuite struct {
 }
 
 // SetupTest initializes the mock server, MCP server, and client before each test.
-func (s *MockServerMcpSuite) SetupTest() {
+func (s *McpSuite) SetupTest() {
 	// Check if real podman is available
 	s.Require().True(IsPodmanAvailable(),
 		"podman CLI is not available - install podman to run these tests")
@@ -135,7 +71,7 @@ func (s *MockServerMcpSuite) SetupTest() {
 }
 
 // TearDownTest cleans up resources after each test.
-func (s *MockServerMcpSuite) TearDownTest() {
+func (s *McpSuite) TearDownTest() {
 	if s.mcpClient != nil {
 		_ = s.mcpClient.Close()
 	}
@@ -149,7 +85,7 @@ func (s *MockServerMcpSuite) TearDownTest() {
 }
 
 // CallTool calls an MCP tool by name with the given arguments.
-func (s *MockServerMcpSuite) CallTool(name string, args map[string]interface{}) (*mcp.CallToolResult, error) {
+func (s *McpSuite) CallTool(name string, args map[string]interface{}) (*mcp.CallToolResult, error) {
 	callToolRequest := mcp.CallToolRequest{}
 	callToolRequest.Params.Name = name
 	callToolRequest.Params.Arguments = args
@@ -157,12 +93,12 @@ func (s *MockServerMcpSuite) CallTool(name string, args map[string]interface{}) 
 }
 
 // ListTools returns the list of available MCP tools.
-func (s *MockServerMcpSuite) ListTools() (*mcp.ListToolsResult, error) {
+func (s *McpSuite) ListTools() (*mcp.ListToolsResult, error) {
 	return s.mcpClient.ListTools(s.T().Context(), mcp.ListToolsRequest{})
 }
 
 // WithContainerList sets up the mock server to return a list of containers.
-func (s *MockServerMcpSuite) WithContainerList(containers []ContainerListResponse) {
+func (s *McpSuite) WithContainerList(containers []ContainerListResponse) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, containers)
 	}
@@ -170,7 +106,7 @@ func (s *MockServerMcpSuite) WithContainerList(containers []ContainerListRespons
 }
 
 // WithContainerInspect sets up the mock server to return container inspect data.
-func (s *MockServerMcpSuite) WithContainerInspect(container ContainerInspectResponse) {
+func (s *McpSuite) WithContainerInspect(container ContainerInspectResponse) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, container)
 	}
@@ -178,7 +114,7 @@ func (s *MockServerMcpSuite) WithContainerInspect(container ContainerInspectResp
 }
 
 // WithImageList sets up the mock server to return a list of images.
-func (s *MockServerMcpSuite) WithImageList(images []ImageListResponse) {
+func (s *McpSuite) WithImageList(images []ImageListResponse) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, images)
 	}
@@ -186,7 +122,7 @@ func (s *MockServerMcpSuite) WithImageList(images []ImageListResponse) {
 }
 
 // WithNetworkList sets up the mock server to return a list of networks.
-func (s *MockServerMcpSuite) WithNetworkList(networks []NetworkListResponse) {
+func (s *McpSuite) WithNetworkList(networks []NetworkListResponse) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, networks)
 	}
@@ -195,7 +131,7 @@ func (s *MockServerMcpSuite) WithNetworkList(networks []NetworkListResponse) {
 
 // WithVolumeList sets up the mock server to return a list of volumes.
 // The Libpod API returns a plain array of volumes, while Docker API wraps in an object.
-func (s *MockServerMcpSuite) WithVolumeList(volumes []VolumeResponse) {
+func (s *McpSuite) WithVolumeList(volumes []VolumeResponse) {
 	// Libpod handler returns plain array
 	libpodHandler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, volumes)
@@ -211,7 +147,7 @@ func (s *MockServerMcpSuite) WithVolumeList(volumes []VolumeResponse) {
 }
 
 // WithError sets up the mock server to return an error for a specific endpoint.
-func (s *MockServerMcpSuite) WithError(method, libpodPath, dockerPath string, statusCode int, message string) {
+func (s *McpSuite) WithError(method, libpodPath, dockerPath string, statusCode int, message string) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteError(w, statusCode, message)
 	}
@@ -220,7 +156,7 @@ func (s *MockServerMcpSuite) WithError(method, libpodPath, dockerPath string, st
 
 // WithContainerLogs sets up the mock server to return container logs.
 // The logs are encoded in the docker multiplexed stream format for non-TTY containers.
-func (s *MockServerMcpSuite) WithContainerLogs(logs string) {
+func (s *McpSuite) WithContainerLogs(logs string) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		// Docker logs use multiplexed stream format for non-TTY containers
@@ -239,7 +175,7 @@ func (s *MockServerMcpSuite) WithContainerLogs(logs string) {
 }
 
 // WithContainerCreate sets up the mock server to handle container creation.
-func (s *MockServerMcpSuite) WithContainerCreate(containerID string) {
+func (s *McpSuite) WithContainerCreate(containerID string) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, ContainerCreateResponse{
 			ID:       containerID,
@@ -250,7 +186,7 @@ func (s *MockServerMcpSuite) WithContainerCreate(containerID string) {
 }
 
 // WithContainerStart sets up the mock server to handle container start.
-func (s *MockServerMcpSuite) WithContainerStart() {
+func (s *McpSuite) WithContainerStart() {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -258,7 +194,7 @@ func (s *MockServerMcpSuite) WithContainerStart() {
 }
 
 // WithContainerStop sets up the mock server to handle container stop.
-func (s *MockServerMcpSuite) WithContainerStop() {
+func (s *McpSuite) WithContainerStop() {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -266,7 +202,7 @@ func (s *MockServerMcpSuite) WithContainerStop() {
 }
 
 // WithContainerRemove sets up the mock server to handle container removal.
-func (s *MockServerMcpSuite) WithContainerRemove() {
+func (s *McpSuite) WithContainerRemove() {
 	libpodHandler := func(w http.ResponseWriter, _ *http.Request) {
 		// Libpod API expects a JSON array of RmReport
 		WriteJSON(w, []map[string]interface{}{
@@ -284,7 +220,7 @@ func (s *MockServerMcpSuite) WithContainerRemove() {
 }
 
 // WithContainerWait sets up the mock server to handle container wait.
-func (s *MockServerMcpSuite) WithContainerWait(exitCode int) {
+func (s *McpSuite) WithContainerWait(exitCode int) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, map[string]interface{}{
 			"StatusCode": exitCode,
@@ -294,7 +230,7 @@ func (s *MockServerMcpSuite) WithContainerWait(exitCode int) {
 }
 
 // WithImagePull sets up the mock server to handle image pull.
-func (s *MockServerMcpSuite) WithImagePull(imageID string) {
+func (s *McpSuite) WithImagePull(imageID string) {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		// Podman sends streaming JSON responses during pull
 		w.Header().Set("Content-Type", "application/json")
@@ -308,7 +244,7 @@ func (s *MockServerMcpSuite) WithImagePull(imageID string) {
 
 // WithImageRemove sets up the mock server to handle image removal.
 // The Libpod API uses /libpod/images/remove with image names as query params.
-func (s *MockServerMcpSuite) WithImageRemove(imageID string) {
+func (s *McpSuite) WithImageRemove(imageID string) {
 	// Libpod API handler - returns LibpodImagesRemoveReport
 	libpodHandler := func(w http.ResponseWriter, _ *http.Request) {
 		// Response format: {"Deleted": ["sha256:..."], "Untagged": [...], "Errors": [...], "ExitCode": 0}
@@ -332,7 +268,7 @@ func (s *MockServerMcpSuite) WithImageRemove(imageID string) {
 }
 
 // WithImagePush sets up the mock server to handle image push.
-func (s *MockServerMcpSuite) WithImagePush() {
+func (s *McpSuite) WithImagePush() {
 	handler := func(w http.ResponseWriter, _ *http.Request) {
 		// Podman sends streaming JSON responses during push
 		w.Header().Set("Content-Type", "application/json")
@@ -340,4 +276,68 @@ func (s *MockServerMcpSuite) WithImagePush() {
 		// Empty response body is acceptable for push
 	}
 	s.MockServer.HandleFunc("POST", "/libpod/images/{name}/push", "/images/{name}/push", handler)
+}
+
+// WithContainerRun sets up the mock server to handle container creation and start.
+// Returns a container ID and sets up all required endpoints for `podman run`.
+func (s *McpSuite) WithContainerRun(containerID string) {
+	// Image pull (podman always tries to pull first)
+	pullHandler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, ImagePullResponse{
+			ID:     "sha256:abc123def456",
+			Status: "Already exists",
+		})
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/images/pull", "/images/create", pullHandler)
+
+	// Image inspect (podman inspects the image after pull)
+	imageInspectHandler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, map[string]any{
+			"Id":       "sha256:abc123def456",
+			"RepoTags": []string{"example.com/org/image:tag"},
+			"Config": map[string]any{
+				"ExposedPorts": map[string]any{
+					"80/tcp": map[string]any{},
+				},
+			},
+		})
+	}
+	s.MockServer.Handle("GET", "/libpod/images/{name}/json", imageInspectHandler)
+
+	// Container create
+	createHandler := func(w http.ResponseWriter, _ *http.Request) {
+		WriteJSON(w, map[string]string{
+			"Id": containerID,
+		})
+	}
+	s.MockServer.HandleFunc("POST", "/libpod/containers/create", "/containers/create", createHandler)
+
+	// Container start
+	startHandler := func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}
+	s.MockServer.Handle("POST", "/libpod/containers/{id}/start", startHandler)
+	s.MockServer.Handle("POST", "/containers/{id}/start", startHandler)
+}
+
+// WithImageBuild sets up the mock server to handle image builds.
+// Returns a successful build response.
+func (s *McpSuite) WithImageBuild(imageID string) {
+	buildHandler := func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Return streaming build output in NDJSON format
+		// Note: Use \\n for escaped newline in JSON, \n for line separator
+		_, _ = w.Write([]byte(`{"stream":"Step 1/1 : FROM alpine\\n"}` + "\n"))
+		_, _ = w.Write([]byte(`{"stream":"Successfully built ` + imageID + `\\n"}` + "\n"))
+		// Write ID in format podman expects
+		_, _ = w.Write([]byte(`{"stream":"` + imageID + `\\n"}` + "\n"))
+	}
+	s.MockServer.Handle("POST", "/libpod/build", buildHandler)
+	s.MockServer.Handle("POST", "/build", buildHandler)
+}
+
+// GetCapturedRequest returns the first captured request matching the method and path pattern.
+// Returns nil if no matching request is found.
+func (s *McpSuite) GetCapturedRequest(method, pathPattern string) *CapturedRequest {
+	return s.MockServer.GetRequest(method, pathPattern)
 }

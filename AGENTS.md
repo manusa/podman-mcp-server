@@ -16,14 +16,13 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
     - `podman/` - Podman/Docker CLI abstraction layer with interface definition and CLI implementation.
     - `podman-mcp-server/cmd/` - CLI command definition using Cobra framework.
     - `version/` - Version information management.
-  - `internal/test/` – shared test utilities (McpSuite, mock podman helpers).
+  - `internal/test/` – shared test utilities (McpSuite, mock Podman API server).
 - `.github/` – GitHub-related configuration (Actions workflows, Dependabot).
 - `build/` – modular Makefile includes for packaging targets.
   - `node.mk` – NPM packaging targets (npm-copy-binaries, npm-copy-project-files, npm-publish).
   - `python.mk` – Python/PyPI packaging targets (python-publish).
 - `npm/` – Node packages that wrap the compiled binaries for distribution through npmjs.com.
 - `python/` – Python package providing a script that downloads the correct platform binary from the GitHub releases page and runs it for distribution through pypi.org.
-- `testdata/` – test fixtures including a mock podman binary for testing.
 - `Makefile` – core build tasks; includes `build/*.mk` for packaging targets.
 - `server.json` – MCP Registry manifest file for publishing to the official registry.
 
@@ -163,9 +162,9 @@ make test
 
 Tests use `testify/suite` following the kubernetes-mcp-server patterns.
 
-#### Test Suites
+#### McpSuite
 
-All tests use `testify/suite` with the `test.McpSuite` base from `internal/test/`:
+All tests use `McpSuite`, which runs the real podman CLI against a mock HTTP server that simulates the Podman REST API. This provides realistic testing of the full CLI-to-API pipeline.
 
 ```go
 package mcp_test
@@ -188,16 +187,37 @@ func TestContainerTools(t *testing.T) {
 }
 
 func (s *ContainerToolsSuite) TestContainerList() {
+    // Set up mock response
+    s.WithContainerList([]test.ContainerListResponse{
+        {
+            ID:      "abc123def456",
+            Names:   []string{"test-container"},
+            Image:   "docker.io/library/nginx:latest",
+            State:   "running",
+            Status:  "Up 2 hours",
+            Created: "2024-01-01T00:00:00Z",
+        },
+    })
+
     toolResult, err := s.CallTool("container_list", map[string]interface{}{})
+
     s.Run("returns OK", func() {
         s.NoError(err)
         s.False(toolResult.IsError)
     })
-    s.Run("lists all containers", func() {
-        s.Regexp("^podman container list", toolResult.Content[0].(mcp.TextContent).Text)
+
+    s.Run("returns container data", func() {
+        text := toolResult.Content[0].(mcp.TextContent).Text
+        s.Contains(text, "test-container")
+    })
+
+    s.Run("mock server received request", func() {
+        s.True(s.MockServer.HasRequest("GET", "/libpod/containers/json"))
     })
 }
 ```
+
+**Note:** Tests using `McpSuite` require podman to be installed. They will fail if podman is not available.
 
 Key patterns:
 - Embed `test.McpSuite` for MCP server/client setup
@@ -210,26 +230,32 @@ Key patterns:
 
 The `internal/test/` package provides shared test utilities:
 
-- **`mcp.go`** - `McpSuite` base suite with:
-  - `SetupTest()` / `TearDownTest()` - MCP server and client lifecycle
-  - `CallTool(name, args)` - Call an MCP tool
-  - `ListTools()` - List available tools
-  - `WithPodmanOutput(lines...)` - Inject mock podman output
+- **`mcp.go`** - Test suite base:
+  - `McpSuite` - Uses real podman CLI with mock HTTP backend
+    - `WithContainerList()`, `WithContainerInspect()`, `WithContainerLogs()`
+    - `WithContainerStop()`, `WithContainerRemove()`, `WithContainerRun()`
+    - `WithImageList()`, `WithImagePull()`, `WithImagePush()`, `WithImageRemove()`, `WithImageBuild()`
+    - `WithNetworkList()`, `WithVolumeList()`
+    - `WithError()` - Inject error responses
+    - `MockServer.HasRequest()` - Verify API calls were made
+    - `GetCapturedRequest()` - Retrieve captured request details for assertions
 
-- **`podman.go`** - Mock podman binary helpers:
-  - `WithPodmanBinary(t)` - Build fake podman and prepend to PATH
+- **`mock_server.go`** - Mock Podman API server:
+  - `MockPodmanServer` - HTTP test server simulating Podman REST API
+  - Supports Libpod (`/libpod/...`) endpoints
+  - Handles API version prefixes (`/v5.x/...`)
+  - Captures request bodies for test assertions
+
+- **`types.go`** - API response types compatible with the Libpod API
+
+- **`podman.go`** - Podman binary helpers:
+  - `IsPodmanAvailable()` - Check if real podman is installed
+  - `WithContainerHost(t, url)` - Set CONTAINER_HOST for mock server
 
 - **`helpers.go`** - General utilities:
   - `Must[T](v, err)` - Panic on error helper
   - `ReadFile(path...)` - Read file relative to caller
-
-#### Mock Podman Binary
-
-The `testdata/podman/main.go` contains a fake podman binary that:
-- Echoes the command line arguments it receives
-- Optionally reads from an `output.txt` file to provide mock responses
-
-This allows testing MCP tools without requiring an actual Podman installation.
+  - `CreateTempContainerfile(t)` - Create temporary Containerfile for build tests
 
 #### Test Structure
 
@@ -264,11 +290,12 @@ UPDATE_SNAPSHOTS=1 go test ./...
 
 When adding tests:
 1. Create a suite struct embedding `test.McpSuite`.
-2. Use `s.CallTool()` to invoke MCP tools.
-3. Use `s.WithPodmanOutput()` to inject expected command output.
-4. Use `s.Run()` for nested subtests with related scenarios.
-5. Use `s.Regexp("^pattern", text)` for prefix matching, `s.Regexp("pattern$", text)` for suffix.
-6. Test both success and error scenarios.
+2. Set up mock responses with `s.WithContainerList()`, `s.WithImageList()`, etc.
+3. Use `s.CallTool()` to invoke MCP tools.
+4. Verify API calls with `s.MockServer.HasRequest()`.
+5. Use `s.GetCapturedRequest()` to verify request details (query params, body).
+6. Use `s.WithError()` to test error scenarios.
+7. Test both success and error scenarios.
 
 ## Dependencies
 

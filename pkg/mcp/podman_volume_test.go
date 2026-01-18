@@ -13,7 +13,7 @@ import (
 // VolumeToolsSuite tests volume tools using the mock Podman API server.
 // These tests use the real podman CLI binary communicating with a mocked backend.
 type VolumeToolsSuite struct {
-	test.MockServerMcpSuite
+	test.McpSuite
 }
 
 func TestVolumeTools(t *testing.T) {

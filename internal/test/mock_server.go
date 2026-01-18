@@ -1,7 +1,9 @@
 package test
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,7 +24,7 @@ type CapturedRequest struct {
 	Method string
 	Path   string
 	Query  string
-	Body   []byte
+	Body   string
 }
 
 // NewMockPodmanServer creates a new mock Podman API server.
@@ -121,12 +123,20 @@ func (m *MockPodmanServer) captureRequest(r *http.Request) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Read and buffer the body so it can be read again by handlers
+	var body string
+	if r.Body != nil {
+		bodyBytes, _ := io.ReadAll(r.Body)
+		body = string(bodyBytes)
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
 	captured := CapturedRequest{
 		Method: r.Method,
 		Path:   r.URL.Path,
 		Query:  r.URL.RawQuery,
+		Body:   body,
 	}
-	// Note: We don't read the body here to avoid consuming it before handlers
 	m.requests = append(m.requests, captured)
 }
 
@@ -183,6 +193,25 @@ func (m *MockPodmanServer) HasRequest(method, pathPattern string) bool {
 		}
 	}
 	return false
+}
+
+// GetRequest returns the first captured request matching the method and path pattern.
+// Returns nil if no matching request is found.
+func (m *MockPodmanServer) GetRequest(method, pathPattern string) *CapturedRequest {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for i := range m.requests {
+		req := &m.requests[i]
+		normalizedPath := stripAPIVersionPrefix(req.Path)
+		if req.Method == method {
+			if matchPathSimple(pathPattern, req.Path) ||
+				matchPathSimple(pathPattern, normalizedPath) ||
+				matchPathWithSuffixSimple(pathPattern, normalizedPath) {
+				return req
+			}
+		}
+	}
+	return nil
 }
 
 // matchPathWithSuffixSimple is like matchPathWithSuffix but for path-only patterns (no method prefix).
