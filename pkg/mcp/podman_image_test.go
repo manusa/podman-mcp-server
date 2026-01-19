@@ -89,146 +89,215 @@ func (s *ImageSuite) TestImageListEmpty() {
 }
 
 func (s *ImageSuite) TestImagePull() {
-	s.WithImagePull("sha256:abc123def456")
-
-	toolResult, err := s.CallTool("image_pull", map[string]interface{}{
-		"imageName": "docker.io/library/nginx:latest",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("image_pull(imageName=nil) returns error", func() {
+		toolResult, err := s.CallTool("image_pull", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns success message", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.Contains(text, "nginx", "should contain image name")
-		s.Contains(text, "pulled successfully", "should indicate success")
-	})
-
-	s.Run("mock server received pull request", func() {
-		s.True(s.MockServer.HasRequest("POST", "/libpod/images/pull"))
-	})
-}
-
-func (s *ImageSuite) TestImagePullNotFound() {
-	s.WithError("POST", "/libpod/images/pull", "/images/create",
-		404, "image not found: nonexistent:latest")
-
-	toolResult, err := s.CallTool("image_pull", map[string]interface{}{
-		"imageName": "nonexistent:latest",
-	})
-
-	s.Run("returns error", func() {
-		s.NoError(err) // MCP call succeeds
 		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, "imageName", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("error message indicates failure", func() {
+	s.Run("image_pull(imageName=nonexistent:latest) returns not found error", func() {
+		s.WithError("POST", "/libpod/images/pull", "/images/create",
+			404, "image not found: nonexistent:latest")
+
+		toolResult, err := s.CallTool("image_pull", map[string]interface{}{
+			"imageName": "nonexistent:latest",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("image_pull(imageName=docker.io/library/nginx:latest) pulls image", func() {
+		s.WithImagePull("sha256:abc123def456")
+
+		toolResult, err := s.CallTool("image_pull", map[string]interface{}{
+			"imageName": "docker.io/library/nginx:latest",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns success message", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "nginx", "should contain image name")
+			s.Contains(text, "pulled successfully", "should indicate success")
+		})
+
+		s.Run("mock server received pull request", func() {
+			s.True(s.MockServer.HasRequest("POST", "/libpod/images/pull"))
+		})
 	})
 }
 
 func (s *ImageSuite) TestImagePush() {
-	// First need an image to exist (podman checks it before pushing)
-	s.WithImageList([]test.ImageListResponse{
-		{
-			ID:       "sha256:abc123def456",
-			RepoTags: []string{"example.com/org/image:tag"},
-			Created:  1704067200,
-			Size:     142000000,
-		},
-	})
-	s.WithImagePush()
-
-	toolResult, err := s.CallTool("image_push", map[string]interface{}{
-		"imageName": "example.com/org/image:tag",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("image_push(imageName=nil) returns error", func() {
+		toolResult, err := s.CallTool("image_push", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns success message", func() {
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.Contains(text, "pushed successfully", "should indicate success")
+		s.Contains(text, "imageName", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("mock server received push request", func() {
-		s.True(s.MockServer.HasRequest("POST", "/libpod/images/{name}/push"))
+	s.Run("image_push(imageName=nonexistent:latest) returns not found error", func() {
+		s.WithError("POST", "/libpod/images/{name}/push", "/images/{name}/push",
+			404, "no such image: nonexistent:latest")
+
+		toolResult, err := s.CallTool("image_push", map[string]interface{}{
+			"imageName": "nonexistent:latest",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("image_push(imageName=example.com/org/image:tag) pushes image", func() {
+		// First need an image to exist (podman checks it before pushing)
+		s.WithImageList([]test.ImageListResponse{
+			{
+				ID:       "sha256:abc123def456",
+				RepoTags: []string{"example.com/org/image:tag"},
+				Created:  1704067200,
+				Size:     142000000,
+			},
+		})
+		s.WithImagePush()
+
+		toolResult, err := s.CallTool("image_push", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns success message", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "pushed successfully", "should indicate success")
+		})
+
+		s.Run("mock server received push request", func() {
+			s.True(s.MockServer.HasRequest("POST", "/libpod/images/{name}/push"))
+		})
 	})
 }
 
 func (s *ImageSuite) TestImageRemove() {
-	// Podman looks up the image before removing
-	s.WithImageList([]test.ImageListResponse{
-		{
-			ID:       "sha256:abc123def456",
-			RepoTags: []string{"example.com/org/image:tag"},
-			Created:  1704067200,
-			Size:     142000000,
-		},
-	})
-	s.WithImageRemove("sha256:abc123def456")
-
-	toolResult, err := s.CallTool("image_remove", map[string]interface{}{
-		"imageName": "example.com/org/image:tag",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("image_remove(imageName=nil) returns error", func() {
+		toolResult, err := s.CallTool("image_remove", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns success response", func() {
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.NotEmpty(text, "should have output")
+		s.Contains(text, "imageName", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("mock server received remove request", func() {
-		s.True(s.MockServer.HasRequest("DELETE", "/libpod/images/remove"))
+	s.Run("image_remove(imageName=nonexistent:latest) returns not found error", func() {
+		s.WithError("DELETE", "/libpod/images/remove", "/images/remove",
+			404, "no such image: nonexistent:latest")
+
+		toolResult, err := s.CallTool("image_remove", map[string]interface{}{
+			"imageName": "nonexistent:latest",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("image_remove(imageName=example.com/org/image:tag) removes image", func() {
+		// Podman looks up the image before removing
+		s.WithImageList([]test.ImageListResponse{
+			{
+				ID:       "sha256:abc123def456",
+				RepoTags: []string{"example.com/org/image:tag"},
+				Created:  1704067200,
+				Size:     142000000,
+			},
+		})
+		s.WithImageRemove("sha256:abc123def456")
+
+		toolResult, err := s.CallTool("image_remove", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns success response", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.NotEmpty(text, "should have output")
+		})
+
+		s.Run("mock server received remove request", func() {
+			s.True(s.MockServer.HasRequest("DELETE", "/libpod/images/remove"))
+		})
 	})
 }
 
-func (s *ImageSuite) TestImageBuildBasic() {
-	s.WithImageBuild("sha256:built123")
-
-	_, _ = s.CallTool("image_build", map[string]interface{}{
-		"containerFile": s.containerFile,
+func (s *ImageSuite) TestImageBuild() {
+	s.Run("image_build(containerFile=nil) returns error", func() {
+		toolResult, err := s.CallTool("image_build", map[string]interface{}{})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, "containerFile", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	// Note: The mock server may not perfectly simulate the build streaming response,
-	// so we focus on verifying the API was called correctly with the right parameters.
-
-	s.Run("mock server received build request", func() {
-		s.True(s.MockServer.HasRequest("POST", "/libpod/build"))
+	s.Run("image_build(containerFile=/nonexistent/Containerfile) returns not found error", func() {
+		toolResult, err := s.CallTool("image_build", map[string]interface{}{
+			"containerFile": "/nonexistent/Containerfile",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
 	})
 
-	s.Run("build request includes dockerfile parameter", func() {
-		req := s.GetCapturedRequest("POST", "/libpod/build")
-		s.Require().NotNil(req, "build request should be captured")
-		// Verify dockerfile is in the query params
-		s.Contains(req.Query, "dockerfile=", "should have dockerfile query param")
+	s.Run("image_build(containerFile=valid) builds image", func() {
+		s.WithImageBuild("sha256:built123")
+
+		_, _ = s.CallTool("image_build", map[string]interface{}{
+			"containerFile": s.containerFile,
+		})
+
+		// Note: The mock server may not perfectly simulate the build streaming response,
+		// so we focus on verifying the API was called correctly with the right parameters.
+
+		s.Run("mock server received build request", func() {
+			s.True(s.MockServer.HasRequest("POST", "/libpod/build"))
+		})
+
+		s.Run("build request includes dockerfile parameter", func() {
+			req := s.PopLastCapturedRequest("POST", "/libpod/build")
+			s.Require().NotNil(req, "build request should be captured")
+			s.Contains(req.Query, "dockerfile=", "should have dockerfile query param")
+		})
 	})
-}
 
-func (s *ImageSuite) TestImageBuildWithImageName() {
-	s.WithImageBuild("sha256:tagged123")
+	s.Run("image_build(imageName=example.com/org/image:tag) includes tag parameter", func() {
+		s.WithImageBuild("sha256:tagged123")
 
-	_, _ = s.CallTool("image_build", map[string]interface{}{
-		"containerFile": s.containerFile,
-		"imageName":     "example.com/org/image:tag",
-	})
+		_, _ = s.CallTool("image_build", map[string]interface{}{
+			"containerFile": s.containerFile,
+			"imageName":     "example.com/org/image:tag",
+		})
 
-	// Note: The mock server may not perfectly simulate the build streaming response,
-	// so we focus on verifying the API was called correctly with the right parameters.
-
-	s.Run("build request includes tag parameter", func() {
-		req := s.GetCapturedRequest("POST", "/libpod/build")
-		s.Require().NotNil(req, "build request should be captured")
-		// Verify tag is in the query params
-		s.Contains(req.Query, "t=example.com", "should have tag query param")
+		s.Run("build request includes tag parameter", func() {
+			req := s.PopLastCapturedRequest("POST", "/libpod/build")
+			s.Require().NotNil(req, "build request should be captured")
+			s.Contains(req.Query, "t=example.com", "should have tag query param")
+		})
 	})
 }

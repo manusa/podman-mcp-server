@@ -214,6 +214,31 @@ func (m *MockPodmanServer) GetRequest(method, pathPattern string) *CapturedReque
 	return nil
 }
 
+// PopLastRequest returns the last captured request matching the method and path pattern,
+// and removes it from the captured requests stack. This allows multiple subtests within
+// the same test function to each get their own captured request.
+// Returns nil if no matching request is found.
+func (m *MockPodmanServer) PopLastRequest(method, pathPattern string) *CapturedRequest {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Search from the end (most recent first)
+	for i := len(m.requests) - 1; i >= 0; i-- {
+		req := m.requests[i]
+		normalizedPath := stripAPIVersionPrefix(req.Path)
+		if req.Method == method {
+			if matchPathSimple(pathPattern, req.Path) ||
+				matchPathSimple(pathPattern, normalizedPath) ||
+				matchPathWithSuffixSimple(pathPattern, normalizedPath) {
+				// Remove the request from the slice
+				m.requests = append(m.requests[:i], m.requests[i+1:]...)
+				return &req
+			}
+		}
+	}
+	return nil
+}
+
 // matchPathWithSuffixSimple is like matchPathWithSuffix but for path-only patterns (no method prefix).
 func matchPathWithSuffixSimple(pattern, path string) bool {
 	patternParts := strings.Split(pattern, "/")

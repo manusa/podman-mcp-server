@@ -341,3 +341,11 @@ func (s *McpSuite) WithImageBuild(imageID string) {
 func (s *McpSuite) GetCapturedRequest(method, pathPattern string) *CapturedRequest {
 	return s.MockServer.GetRequest(method, pathPattern)
 }
+
+// PopLastCapturedRequest returns the last captured request matching the method and path pattern,
+// and removes it from the captured requests stack. This allows multiple subtests within
+// the same test function to each get their own captured request.
+// Returns nil if no matching request is found.
+func (s *McpSuite) PopLastCapturedRequest(method, pathPattern string) *CapturedRequest {
+	return s.MockServer.PopLastRequest(method, pathPattern)
+}

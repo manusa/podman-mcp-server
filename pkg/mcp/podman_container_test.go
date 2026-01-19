@@ -398,56 +398,57 @@ func (s *ContainerSuite) TestContainerRun() {
 			s.True(s.MockServer.HasRequest("POST", "/libpod/containers/{id}/start"))
 		})
 	})
+
+	s.Run("container_run(ports=[...]) includes port mappings", func() {
+		s.WithContainerRun("container-with-ports")
+
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+			"ports": []interface{}{
+				1337, // Invalid entry - should be ignored
+				"8080:80",
+				"8082:8082",
+				"8443:443",
+			},
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("create request includes port mappings", func() {
+			req := s.PopLastCapturedRequest("POST", "/libpod/containers/create")
+			s.Require().NotNil(req, "create request should be captured")
+			s.Contains(req.Body, `"host_port":8080`, "should have port 8080 mapping")
+			s.Contains(req.Body, `"host_port":8082`, "should have port 8082 mapping")
+			s.Contains(req.Body, `"host_port":8443`, "should have port 8443 mapping")
+		})
+	})
+
+	s.Run("container_run(environment=[...]) includes environment variables", func() {
+		s.WithContainerRun("container-with-env")
+
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+			"ports":     []interface{}{"8080:80"},
+			"environment": []interface{}{
+				"KEY=VALUE",
+				"FOO=BAR",
+			},
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("create request includes environment variables", func() {
+			req := s.PopLastCapturedRequest("POST", "/libpod/containers/create")
+			s.Require().NotNil(req, "create request should be captured")
+			s.Contains(req.Body, `"KEY":"VALUE"`, "should have KEY=VALUE env var")
+			s.Contains(req.Body, `"FOO":"BAR"`, "should have FOO=BAR env var")
+		})
+	})
 }
 
-func (s *ContainerSuite) TestContainerRunWithPorts() {
-	s.WithContainerRun("container-with-ports")
-
-	toolResult, err := s.CallTool("container_run", map[string]interface{}{
-		"imageName": "example.com/org/image:tag",
-		"ports": []interface{}{
-			1337, // Invalid entry - should be ignored
-			"8080:80",
-			"8082:8082",
-			"8443:443",
-		},
-	})
-
-	s.Run("returns OK", func() {
-		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("create request includes port mappings", func() {
-		req := s.GetCapturedRequest("POST", "/libpod/containers/create")
-		s.Require().NotNil(req, "create request should be captured")
-		s.Contains(req.Body, `"host_port":8080`, "should have port 8080 mapping")
-		s.Contains(req.Body, `"host_port":8082`, "should have port 8082 mapping")
-		s.Contains(req.Body, `"host_port":8443`, "should have port 8443 mapping")
-	})
-}
-
-func (s *ContainerSuite) TestContainerRunWithEnvironment() {
-	s.WithContainerRun("container-with-env")
-
-	toolResult, err := s.CallTool("container_run", map[string]interface{}{
-		"imageName": "example.com/org/image:tag",
-		"ports":     []interface{}{"8080:80"},
-		"environment": []interface{}{
-			"KEY=VALUE",
-			"FOO=BAR",
-		},
-	})
-
-	s.Run("returns OK", func() {
-		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("create request includes environment variables", func() {
-		req := s.GetCapturedRequest("POST", "/libpod/containers/create")
-		s.Require().NotNil(req, "create request should be captured")
-		s.Contains(req.Body, `"KEY":"VALUE"`, "should have KEY=VALUE env var")
-		s.Contains(req.Body, `"FOO":"BAR"`, "should have FOO=BAR env var")
-	})
-}
