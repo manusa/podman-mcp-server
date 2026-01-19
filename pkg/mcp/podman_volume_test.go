@@ -10,17 +10,17 @@ import (
 	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-// VolumeToolsSuite tests volume tools using the mock Podman API server.
+// VolumeSuite tests volume tools using the mock Podman API server.
 // These tests use the real podman CLI binary communicating with a mocked backend.
-type VolumeToolsSuite struct {
+type VolumeSuite struct {
 	test.McpSuite
 }
 
-func TestVolumeTools(t *testing.T) {
-	suite.Run(t, new(VolumeToolsSuite))
+func TestVolumeSuite(t *testing.T) {
+	suite.Run(t, new(VolumeSuite))
 }
 
-func (s *VolumeToolsSuite) TestVolumeList() {
+func (s *VolumeSuite) TestVolumeList() {
 	s.WithVolumeList([]test.VolumeResponse{
 		{
 			Name:       "my-volume",
@@ -62,7 +62,7 @@ func (s *VolumeToolsSuite) TestVolumeList() {
 	})
 }
 
-func (s *VolumeToolsSuite) TestVolumeListEmpty() {
+func (s *VolumeSuite) TestVolumeListEmpty() {
 	s.WithVolumeList([]test.VolumeResponse{})
 
 	toolResult, err := s.CallTool("volume_list", map[string]interface{}{})

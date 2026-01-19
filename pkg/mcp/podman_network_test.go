@@ -10,17 +10,17 @@ import (
 	"github.com/manusa/podman-mcp-server/internal/test"
 )
 
-// NetworkToolsSuite tests network tools using the mock Podman API server.
+// NetworkSuite tests network tools using the mock Podman API server.
 // These tests use the real podman CLI binary communicating with a mocked backend.
-type NetworkToolsSuite struct {
+type NetworkSuite struct {
 	test.McpSuite
 }
 
-func TestNetworkTools(t *testing.T) {
-	suite.Run(t, new(NetworkToolsSuite))
+func TestNetworkSuite(t *testing.T) {
+	suite.Run(t, new(NetworkSuite))
 }
 
-func (s *NetworkToolsSuite) TestNetworkList() {
+func (s *NetworkSuite) TestNetworkList() {
 	s.WithNetworkList([]test.NetworkListResponse{
 		{
 			Name:   "podman",
@@ -70,7 +70,7 @@ func (s *NetworkToolsSuite) TestNetworkList() {
 	})
 }
 
-func (s *NetworkToolsSuite) TestNetworkListEmpty() {
+func (s *NetworkSuite) TestNetworkListEmpty() {
 	s.WithNetworkList([]test.NetworkListResponse{})
 
 	toolResult, err := s.CallTool("network_list", map[string]interface{}{})
