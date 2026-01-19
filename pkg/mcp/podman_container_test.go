@@ -93,213 +93,310 @@ func (s *ContainerSuite) TestContainerListEmpty() {
 }
 
 func (s *ContainerSuite) TestContainerInspect() {
-	s.WithContainerInspect(test.ContainerInspectResponse{
-		ID:        "abc123def456",
-		Name:      "/test-container",
-		Image:     "sha256:abc123",
-		ImageName: "docker.io/library/nginx:latest",
-		Created:   "2024-01-01T00:00:00Z",
-		State: &test.ContainerState{
-			Status:    "running",
-			Running:   true,
-			StartedAt: "2024-01-01T00:00:00Z",
-		},
-		Config: &test.ContainerConfig{
-			Image:    "docker.io/library/nginx:latest",
-			Hostname: "abc123def456",
-			Env:      []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-		},
-	})
-
-	toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
-		"name": "test-container",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("container_inspect(name=nil) returns error", func() {
+		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns container details with expected format", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
-
-		// Inspect returns JSON format with container details
-		s.Contains(text, "abc123def456", "should contain container ID")
-		s.Contains(text, "nginx", "should contain image name")
-		s.Contains(text, "running", "should contain container state")
-	})
-
-	s.Run("mock server received inspect request", func() {
-		s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/json"))
-	})
-}
-
-func (s *ContainerSuite) TestContainerInspectNotFound() {
-	s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
-		404, "no such container: nonexistent")
-
-	toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
-		"name": "nonexistent",
-	})
-
-	s.Run("returns error", func() {
-		s.NoError(err) // MCP call succeeds
 		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, "name", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("error message indicates failure", func() {
+	s.Run("container_inspect(name=nonexistent) returns not found error", func() {
+		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
+			404, "no such container: nonexistent")
+
+		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
+			"name": "nonexistent",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("container_inspect(name=test-container) returns container details", func() {
+		s.WithContainerInspect(test.ContainerInspectResponse{
+			ID:        "abc123def456",
+			Name:      "/test-container",
+			Image:     "sha256:abc123",
+			ImageName: "docker.io/library/nginx:latest",
+			Created:   "2024-01-01T00:00:00Z",
+			State: &test.ContainerState{
+				Status:    "running",
+				Running:   true,
+				StartedAt: "2024-01-01T00:00:00Z",
+			},
+			Config: &test.ContainerConfig{
+				Image:    "docker.io/library/nginx:latest",
+				Hostname: "abc123def456",
+				Env:      []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+			},
+		})
+
+		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
+			"name": "test-container",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns container details with expected format", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "abc123def456", "should contain container ID")
+			s.Contains(text, "nginx", "should contain image name")
+			s.Contains(text, "running", "should contain container state")
+		})
+
+		s.Run("mock server received inspect request", func() {
+			s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/json"))
+		})
 	})
 }
 
 func (s *ContainerSuite) TestContainerLogs() {
-	// Podman CLI first inspects the container before fetching logs
-	s.WithContainerInspect(test.ContainerInspectResponse{
-		ID:        "abc123def456",
-		Name:      "/test-container",
-		Image:     "sha256:abc123",
-		ImageName: "docker.io/library/nginx:latest",
-		Created:   "2024-01-01T00:00:00Z",
-		State: &test.ContainerState{
-			Status:    "running",
-			Running:   true,
-			StartedAt: "2024-01-01T00:00:00Z",
-		},
-	})
-	expectedLogs := "2024-01-01T00:00:00Z Starting nginx...\n2024-01-01T00:00:01Z nginx started successfully\n"
-	s.WithContainerLogs(expectedLogs)
-
-	toolResult, err := s.CallTool("container_logs", map[string]interface{}{
-		"name": "test-container",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("container_logs(name=nil) returns error", func() {
+		toolResult, err := s.CallTool("container_logs", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns log content with expected format", func() {
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
-
-		// Verify log lines are present and in correct order
-		s.Contains(text, "Starting nginx", "should contain first log line")
-		s.Contains(text, "nginx started successfully", "should contain second log line")
-		s.Less(
-			strings.Index(text, "Starting nginx"),
-			strings.Index(text, "nginx started successfully"),
-			"log lines should appear in chronological order",
-		)
+		s.Contains(text, "name", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("mock server received logs request", func() {
-		s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/logs"))
+	s.Run("container_logs(name=nonexistent) returns not found error", func() {
+		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
+			404, "no such container: nonexistent")
+
+		toolResult, err := s.CallTool("container_logs", map[string]interface{}{
+			"name": "nonexistent",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("container_logs(name=test-container) returns logs", func() {
+		// Podman CLI first inspects the container before fetching logs
+		s.WithContainerInspect(test.ContainerInspectResponse{
+			ID:        "abc123def456",
+			Name:      "/test-container",
+			Image:     "sha256:abc123",
+			ImageName: "docker.io/library/nginx:latest",
+			Created:   "2024-01-01T00:00:00Z",
+			State: &test.ContainerState{
+				Status:    "running",
+				Running:   true,
+				StartedAt: "2024-01-01T00:00:00Z",
+			},
+		})
+		expectedLogs := "2024-01-01T00:00:00Z Starting nginx...\n2024-01-01T00:00:01Z nginx started successfully\n"
+		s.WithContainerLogs(expectedLogs)
+
+		toolResult, err := s.CallTool("container_logs", map[string]interface{}{
+			"name": "test-container",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns log content with expected format", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "Starting nginx", "should contain first log line")
+			s.Contains(text, "nginx started successfully", "should contain second log line")
+			s.Less(
+				strings.Index(text, "Starting nginx"),
+				strings.Index(text, "nginx started successfully"),
+				"log lines should appear in chronological order",
+			)
+		})
+
+		s.Run("mock server received logs request", func() {
+			s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/logs"))
+		})
 	})
 }
 
 func (s *ContainerSuite) TestContainerStop() {
-	// Podman first looks up container by name, then inspects, then stops
-	s.WithContainerList([]test.ContainerListResponse{
-		{
-			ID:        "abc123def456",
-			Names:     []string{"test-container"},
-			Image:     "docker.io/library/nginx:latest",
-			State:     "running",
-			Created:   "2024-01-01T00:00:00Z",
-			Command:   []string{"/bin/sh"},
-			StartedAt: 1704067200,
-		},
-	})
-	s.WithContainerInspect(test.ContainerInspectResponse{
-		ID:      "abc123def456",
-		Name:    "/test-container",
-		Created: "2024-01-01T00:00:00Z",
-		State:   &test.ContainerState{Status: "running", Running: true},
-	})
-	s.WithContainerStop()
-
-	toolResult, err := s.CallTool("container_stop", map[string]interface{}{
-		"name": "test-container",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("container_stop(name=nil) returns error", func() {
+		toolResult, err := s.CallTool("container_stop", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns success response with container name", func() {
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.Contains(text, "test-container", "should contain the stopped container name")
+		s.Contains(text, "name", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("mock server received stop request", func() {
-		s.True(s.MockServer.HasRequest("POST", "/libpod/containers/{id}/stop"))
+	s.Run("container_stop(name=nonexistent) returns not found error", func() {
+		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
+			404, "no such container: nonexistent")
+
+		toolResult, err := s.CallTool("container_stop", map[string]interface{}{
+			"name": "nonexistent",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("container_stop(name=test-container) stops container", func() {
+		// Podman first looks up container by name, then inspects, then stops
+		s.WithContainerList([]test.ContainerListResponse{
+			{
+				ID:        "abc123def456",
+				Names:     []string{"test-container"},
+				Image:     "docker.io/library/nginx:latest",
+				State:     "running",
+				Created:   "2024-01-01T00:00:00Z",
+				Command:   []string{"/bin/sh"},
+				StartedAt: 1704067200,
+			},
+		})
+		s.WithContainerInspect(test.ContainerInspectResponse{
+			ID:      "abc123def456",
+			Name:    "/test-container",
+			Created: "2024-01-01T00:00:00Z",
+			State:   &test.ContainerState{Status: "running", Running: true},
+		})
+		s.WithContainerStop()
+
+		toolResult, err := s.CallTool("container_stop", map[string]interface{}{
+			"name": "test-container",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns success response with container name", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "test-container", "should contain the stopped container name")
+		})
+
+		s.Run("mock server received stop request", func() {
+			s.True(s.MockServer.HasRequest("POST", "/libpod/containers/{id}/stop"))
+		})
 	})
 }
 
 func (s *ContainerSuite) TestContainerRemove() {
-	// Podman first looks up container by name, then inspects, then removes
-	s.WithContainerList([]test.ContainerListResponse{
-		{
-			ID:        "abc123def456",
-			Names:     []string{"test-container"},
-			Image:     "docker.io/library/nginx:latest",
-			State:     "exited",
-			Created:   "2024-01-01T00:00:00Z",
-			Command:   []string{"/bin/sh"},
-			StartedAt: 1704067200,
-		},
-	})
-	s.WithContainerInspect(test.ContainerInspectResponse{
-		ID:      "abc123def456",
-		Name:    "/test-container",
-		Created: "2024-01-01T00:00:00Z",
-		State:   &test.ContainerState{Status: "exited", Running: false},
-	})
-	s.WithContainerRemove()
-
-	toolResult, err := s.CallTool("container_remove", map[string]interface{}{
-		"name": "test-container",
-	})
-
-	s.Run("returns OK", func() {
+	s.Run("container_remove(name=nil) returns error", func() {
+		toolResult, err := s.CallTool("container_remove", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns success response with container name", func() {
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.Contains(text, "test-container", "should contain the removed container name")
+		s.Contains(text, "name", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("mock server received remove request", func() {
-		s.True(s.MockServer.HasRequest("DELETE", "/libpod/containers/{id}"))
+	s.Run("container_remove(name=nonexistent) returns not found error", func() {
+		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
+			404, "no such container: nonexistent")
+
+		toolResult, err := s.CallTool("container_remove", map[string]interface{}{
+			"name": "nonexistent",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("container_remove(name=test-container) removes container", func() {
+		// Podman first looks up container by name, then inspects, then removes
+		s.WithContainerList([]test.ContainerListResponse{
+			{
+				ID:        "abc123def456",
+				Names:     []string{"test-container"},
+				Image:     "docker.io/library/nginx:latest",
+				State:     "exited",
+				Created:   "2024-01-01T00:00:00Z",
+				Command:   []string{"/bin/sh"},
+				StartedAt: 1704067200,
+			},
+		})
+		s.WithContainerInspect(test.ContainerInspectResponse{
+			ID:      "abc123def456",
+			Name:    "/test-container",
+			Created: "2024-01-01T00:00:00Z",
+			State:   &test.ContainerState{Status: "exited", Running: false},
+		})
+		s.WithContainerRemove()
+
+		toolResult, err := s.CallTool("container_remove", map[string]interface{}{
+			"name": "test-container",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns success response with container name", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "test-container", "should contain the removed container name")
+		})
+
+		s.Run("mock server received remove request", func() {
+			s.True(s.MockServer.HasRequest("DELETE", "/libpod/containers/{id}"))
+		})
 	})
 }
 
-func (s *ContainerSuite) TestContainerRunBasic() {
-	s.WithContainerRun("container123")
-
-	toolResult, err := s.CallTool("container_run", map[string]interface{}{
-		"imageName": "example.com/org/image:tag",
-	})
-
-	s.Run("returns OK", func() {
+func (s *ContainerSuite) TestContainerRun() {
+	s.Run("container_run(imageName=nil) returns error", func() {
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{})
 		s.NoError(err)
-		s.False(toolResult.IsError)
-	})
-
-	s.Run("returns container ID", func() {
+		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.Contains(text, "container123")
+		s.Contains(text, "imageName", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
-	s.Run("mock server received create request", func() {
-		s.True(s.MockServer.HasRequest("POST", "/libpod/containers/create"))
+	s.Run("container_run(imageName=nonexistent:latest) returns image not found error", func() {
+		s.WithError("POST", "/libpod/containers/create", "/containers/create",
+			404, "no such image: nonexistent:latest")
+
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
+			"imageName": "nonexistent:latest",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
 	})
 
-	s.Run("mock server received start request", func() {
-		s.True(s.MockServer.HasRequest("POST", "/libpod/containers/{id}/start"))
+	s.Run("container_run(imageName=example.com/org/image:tag) runs container", func() {
+		s.WithContainerRun("container123")
+
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
+			"imageName": "example.com/org/image:tag",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns container ID", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "container123")
+		})
+
+		s.Run("mock server received create request", func() {
+			s.True(s.MockServer.HasRequest("POST", "/libpod/containers/create"))
+		})
+
+		s.Run("mock server received start request", func() {
+			s.True(s.MockServer.HasRequest("POST", "/libpod/containers/{id}/start"))
+		})
 	})
 }
 
@@ -324,7 +421,6 @@ func (s *ContainerSuite) TestContainerRunWithPorts() {
 	s.Run("create request includes port mappings", func() {
 		req := s.GetCapturedRequest("POST", "/libpod/containers/create")
 		s.Require().NotNil(req, "create request should be captured")
-		// Verify port mappings are in the request body
 		s.Contains(req.Body, `"host_port":8080`, "should have port 8080 mapping")
 		s.Contains(req.Body, `"host_port":8082`, "should have port 8082 mapping")
 		s.Contains(req.Body, `"host_port":8443`, "should have port 8443 mapping")
@@ -351,7 +447,6 @@ func (s *ContainerSuite) TestContainerRunWithEnvironment() {
 	s.Run("create request includes environment variables", func() {
 		req := s.GetCapturedRequest("POST", "/libpod/containers/create")
 		s.Require().NotNil(req, "create request should be captured")
-		// Verify environment variables are in the request body
 		s.Contains(req.Body, `"KEY":"VALUE"`, "should have KEY=VALUE env var")
 		s.Contains(req.Body, `"FOO":"BAR"`, "should have FOO=BAR env var")
 	})
