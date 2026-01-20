@@ -102,6 +102,17 @@ func (s *ContainerSuite) TestContainerInspect() {
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
 
+	s.Run("container_inspect(name=123) returns error for non-string parameter", func() {
+		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
+			"name": 123, // Pass an integer instead of a string
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, "name", "error should mention the parameter")
+		s.Contains(text, "must be a string", "error should indicate parameter must be a string")
+	})
+
 	s.Run("container_inspect(name=nonexistent) returns not found error", func() {
 		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
 			404, "no such container: nonexistent")
@@ -371,6 +382,26 @@ func (s *ContainerSuite) TestContainerRun() {
 		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("container_run(environment=string) ignores non-array environment parameter", func() {
+		s.WithContainerRun("container-with-invalid-env")
+
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
+			"imageName":   "example.com/org/image:tag",
+			"environment": "FOO=BAR", // Pass a string instead of an array
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("create request does not include environment variables", func() {
+			req := s.PopLastCapturedRequest("POST", "/libpod/containers/create")
+			s.Require().NotNil(req, "create request should be captured")
+			s.NotContains(req.Body, `"FOO"`, "should not have env var from invalid parameter")
+		})
 	})
 
 	s.Run("container_run(imageName=example.com/org/image:tag) runs container", func() {
