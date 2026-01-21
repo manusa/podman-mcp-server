@@ -95,3 +95,29 @@ func (s *McpServerSuite) assertJsonSnapshot(snapshotFile string, actual any) {
 		updateSnapshotsEnvVar,
 	)
 }
+
+func (s *McpServerSuite) TestCallToolWithMalformedArguments() {
+	s.Run("string instead of object arguments returns error", func() {
+		// Send arguments as a JSON string instead of an object
+		result, err := s.CallToolRaw("container_list", `"this is a string, not an object"`)
+		s.Require().NoError(err, "HTTP request should succeed")
+		s.NotNil(result.Error, "should return a JSON-RPC error")
+		s.Contains(result.Error.Message, "failed to unmarshal arguments", "error should mention unmarshal failure")
+	})
+
+	s.Run("array instead of object arguments returns error", func() {
+		// Send arguments as a JSON array instead of an object
+		result, err := s.CallToolRaw("container_list", `[1, 2, 3]`)
+		s.Require().NoError(err, "HTTP request should succeed")
+		s.NotNil(result.Error, "should return a JSON-RPC error")
+		s.Contains(result.Error.Message, "failed to unmarshal arguments", "error should mention unmarshal failure")
+	})
+
+	s.Run("number instead of object arguments returns error", func() {
+		// Send arguments as a JSON number instead of an object
+		result, err := s.CallToolRaw("container_list", `42`)
+		s.Require().NoError(err, "HTTP request should succeed")
+		s.NotNil(result.Error, "should return a JSON-RPC error")
+		s.Contains(result.Error.Message, "failed to unmarshal arguments", "error should mention unmarshal failure")
+	})
+}

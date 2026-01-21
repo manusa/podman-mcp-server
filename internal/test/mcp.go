@@ -1,9 +1,13 @@
 package test
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 
 	"github.com/mark3labs/mcp-go/client"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -90,6 +94,95 @@ func (s *McpSuite) CallTool(name string, args map[string]interface{}) (*mcp.Call
 	callToolRequest.Params.Name = name
 	callToolRequest.Params.Arguments = args
 	return s.mcpClient.CallTool(s.T().Context(), callToolRequest)
+}
+
+// CallToolRawResponse represents the raw JSON-RPC response from the server.
+// It handles both success and error responses since JSON-RPC uses mutually exclusive
+// result/error fields. The library provides separate JSONRPCResponse (success only)
+// and JSONRPCError (error only) types, but we need a single struct for both cases.
+type CallToolRawResponse struct {
+	JSONRPC string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Result  *struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+		IsError bool `json:"isError"`
+	} `json:"result,omitempty"`
+	Error *struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"error,omitempty"`
+}
+
+// CallToolRaw sends a raw JSON-RPC request with arbitrary arguments (as raw JSON).
+// This bypasses the typed client and allows testing with malformed arguments.
+// It handles the Streamable HTTP protocol including session initialization.
+func (s *McpSuite) CallToolRaw(name string, argumentsJSON string) (*CallToolRawResponse, error) {
+	// First, initialize the session using the same protocol version as the typed client
+	initBody := fmt.Sprintf(
+		`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"%s","clientInfo":{"name":"test","version":"1.0"}}}`,
+		mcp.LATEST_PROTOCOL_VERSION,
+	)
+
+	initReq, err := http.NewRequest("POST", s.mcpHttpServer.URL, strings.NewReader(initBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create init request: %w", err)
+	}
+	initReq.Header.Set("Content-Type", "application/json")
+	initReq.Header.Set("Accept", "application/json, text/event-stream")
+
+	initResp, err := http.DefaultClient.Do(initReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send init request: %w", err)
+	}
+	defer func() { _ = initResp.Body.Close() }()
+	sessionID := initResp.Header.Get("Mcp-Session-Id")
+
+	// Now send the tool call with the session ID
+	requestBody := fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"%s","arguments":%s}}`, name, argumentsJSON)
+
+	req, err := http.NewRequest("POST", s.mcpHttpServer.URL, strings.NewReader(requestBody))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", sessionID)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse SSE response - extract JSON from "data: " lines
+	bodyStr := string(body)
+	var jsonData string
+	for _, line := range strings.Split(bodyStr, "\n") {
+		if strings.HasPrefix(line, "data: ") {
+			jsonData = strings.TrimPrefix(line, "data: ")
+			break
+		}
+	}
+	if jsonData == "" {
+		// Try parsing as plain JSON (non-SSE response)
+		jsonData = bodyStr
+	}
+
+	var result CallToolRawResponse
+	if err := json.Unmarshal([]byte(jsonData), &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w (body: %s)", err, bodyStr)
+	}
+	return &result, nil
 }
 
 // ListTools returns the list of available MCP tools.
