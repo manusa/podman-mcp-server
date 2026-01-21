@@ -1,6 +1,7 @@
 package mcp_test
 
 import (
+	"net/http"
 	"regexp"
 	"strings"
 	"testing"
@@ -401,6 +402,57 @@ func (s *ContainerSuite) TestContainerRun() {
 			req := s.PopLastCapturedRequest("POST", "/libpod/containers/create")
 			s.Require().NotNil(req, "create request should be captured")
 			s.NotContains(req.Body, `"FOO"`, "should not have env var from invalid parameter")
+		})
+	})
+
+	s.Run("container_run(imageName=nginx:latest) retries with docker.io prefix on short-name error", func() {
+		// Setup: mock server returns error for short names, success for docker.io/ prefix
+		pullHandler := func(w http.ResponseWriter, r *http.Request) {
+			reference := r.URL.Query().Get("reference")
+			if strings.HasPrefix(reference, "docker.io/") {
+				test.WriteJSON(w, test.ImagePullResponse{
+					ID:     "sha256:abc123def456",
+					Status: "Already exists",
+				})
+				return
+			}
+			test.WriteError(w, http.StatusInternalServerError, "Error: short-name \""+reference+"\" did not resolve to an alias")
+		}
+		s.MockServer.HandleFunc("POST", "/libpod/images/pull", "/images/create", pullHandler)
+
+		imageInspectHandler := func(w http.ResponseWriter, _ *http.Request) {
+			test.WriteJSON(w, map[string]any{
+				"Id":       "sha256:abc123def456",
+				"RepoTags": []string{"docker.io/library/nginx:latest"},
+				"Config": map[string]any{
+					"ExposedPorts": map[string]any{"80/tcp": map[string]any{}},
+				},
+			})
+		}
+		s.MockServer.Handle("GET", "/libpod/images/{name}/json", imageInspectHandler)
+
+		createHandler := func(w http.ResponseWriter, _ *http.Request) {
+			test.WriteJSON(w, map[string]string{"Id": "container-shortname"})
+		}
+		s.MockServer.HandleFunc("POST", "/libpod/containers/create", "/containers/create", createHandler)
+
+		startHandler := func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}
+		s.MockServer.Handle("POST", "/libpod/containers/{id}/start", startHandler)
+
+		toolResult, err := s.CallTool("container_run", map[string]interface{}{
+			"imageName": "nginx:latest",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns container ID", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "container-shortname", "should contain the container ID")
 		})
 	})
 

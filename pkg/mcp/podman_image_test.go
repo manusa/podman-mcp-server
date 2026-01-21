@@ -1,7 +1,9 @@
 package mcp_test
 
 import (
+	"net/http"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -109,6 +111,38 @@ func (s *ImageSuite) TestImagePull() {
 		s.True(toolResult.IsError, "tool result should indicate an error")
 		text := toolResult.Content[0].(mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("image_pull(imageName=nginx:latest) retries with docker.io prefix on short-name error", func() {
+		// Setup: mock server returns error for short names, success for docker.io/ prefix
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			reference := r.URL.Query().Get("reference")
+			if strings.HasPrefix(reference, "docker.io/") {
+				w.Header().Set("Content-Type", "application/json")
+				test.WriteJSON(w, test.ImagePullResponse{
+					ID:     "sha256:shortname123",
+					Status: "Download complete",
+				})
+				return
+			}
+			test.WriteError(w, http.StatusInternalServerError, "Error: short-name \""+reference+"\" did not resolve to an alias")
+		}
+		s.MockServer.HandleFunc("POST", "/libpod/images/pull", "/images/create", handler)
+
+		toolResult, err := s.CallTool("image_pull", map[string]interface{}{
+			"imageName": "nginx:latest",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns success message with docker.io prefix", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "docker.io/nginx", "should contain the docker.io prefixed image name")
+			s.Contains(text, "pulled successfully", "should indicate success")
+		})
 	})
 
 	s.Run("image_pull(imageName=docker.io/library/nginx:latest) pulls image", func() {
