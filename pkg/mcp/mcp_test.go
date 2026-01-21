@@ -121,3 +121,14 @@ func (s *McpServerSuite) TestCallToolWithMalformedArguments() {
 		s.Contains(result.Error.Message, "failed to unmarshal arguments", "error should mention unmarshal failure")
 	})
 }
+
+func (s *McpServerSuite) TestCallToolWithNullArguments() {
+	// Set up mock for container_list
+	s.WithContainerList([]test.ContainerListResponse{})
+
+	// Send arguments as null - should be treated as empty arguments
+	result, err := s.CallToolRaw("container_list", `null`)
+	s.Require().NoError(err, "HTTP request should succeed")
+	s.Nil(result.Error, "should not return a JSON-RPC error")
+	s.NotNil(result.Result, "should return a result")
+}
