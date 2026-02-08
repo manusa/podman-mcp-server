@@ -107,8 +107,19 @@ make build
 make build-all-platforms
 ```
 
-`make build` will run `go fmt` and `go mod tidy` before compiling.
+`make build` will run `go fmt`, `go mod tidy`, and `golangci-lint` before compiling.
 The resulting executable is `podman-mcp-server`.
+
+### Linting
+
+The project uses [golangci-lint](https://golangci-lint.run/) for code quality checks:
+
+```bash
+# Run linter (automatically downloads golangci-lint if needed)
+make lint
+```
+
+The linter is also run automatically as part of `make build`.
 
 ## Running
 
@@ -157,6 +168,20 @@ Run all Go tests with:
 ```bash
 make test
 ```
+
+### Testing Philosophy
+
+This project follows these testing principles:
+
+1. **Black-box Testing**: Tests verify behavior and observable outcomes, not implementation details. Test the public API (MCP tools) through the test client.
+
+2. **Real CLI with Mock Backend**: Instead of mocking the podman CLI, tests use the real podman binary pointing to a mock HTTP server. This provides realistic testing of the full CLI-to-API pipeline.
+
+3. **Nested Test Structure**: Use `s.Run()` subtests for related scenarios within a single test function. This provides clear organization and focused failure identification.
+
+4. **Scenario-Based Setup**: Set up mock responses before calling the tool, then verify both the result and that the expected API calls were made.
+
+5. **Single Assertion Per Subtest**: Each `s.Run()` block should assert ONE specific condition for clear failure identification.
 
 ### Testing Patterns and Guidelines
 
@@ -232,13 +257,21 @@ The `internal/test/` package provides shared test utilities:
 
 - **`mcp.go`** - Test suite base:
   - `McpSuite` - Uses real podman CLI with mock HTTP backend
+    - `CallTool()` - Call MCP tools with typed arguments
+    - `CallToolRaw()` - Call MCP tools with raw JSON arguments (for testing malformed input)
+    - `ListTools()` - Get list of available MCP tools
     - `WithContainerList()`, `WithContainerInspect()`, `WithContainerLogs()`
-    - `WithContainerStop()`, `WithContainerRemove()`, `WithContainerRun()`
+    - `WithContainerCreate()`, `WithContainerStart()`, `WithContainerStop()`
+    - `WithContainerRemove()`, `WithContainerRun()`, `WithContainerWait()`
     - `WithImageList()`, `WithImagePull()`, `WithImagePush()`, `WithImageRemove()`, `WithImageBuild()`
     - `WithNetworkList()`, `WithVolumeList()`
     - `WithError()` - Inject error responses
     - `MockServer.HasRequest()` - Verify API calls were made
-    - `GetCapturedRequest()` - Retrieve captured request details for assertions
+    - `GetCapturedRequest()` - Retrieve first captured request details for assertions
+    - `PopLastCapturedRequest()` - Retrieve and remove last captured request (for multiple subtests)
+
+- **`env.go`** - Environment utilities:
+  - `RestoreEnv()` - Restore original environment variables after test
 
 - **`mock_server.go`** - Mock Podman API server:
   - `MockPodmanServer` - HTTP test server simulating Podman REST API
