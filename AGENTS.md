@@ -244,6 +244,32 @@ func (s *ContainerToolsSuite) TestContainerList() {
 
 **Note:** Tests using `McpSuite` require podman to be installed. They will fail if podman is not available.
 
+#### Multi-Implementation Testing
+
+Tests can be run with different Podman implementations using the `PodmanImpl` field:
+
+```go
+// Run tests with a specific implementation
+func TestContainerToolsWithCLI(t *testing.T) {
+    suite.Run(t, &ContainerSuite{
+        McpSuite: test.McpSuite{PodmanImpl: "cli"},
+    })
+}
+
+// Run tests with all available implementations
+func TestContainerSuiteWithAllImplementations(t *testing.T) {
+    for _, impl := range test.AvailableImplementations() {
+        suite.Run(t, &ContainerSuite{
+            McpSuite: test.McpSuite{PodmanImpl: impl},
+        })
+    }
+}
+```
+
+Currently available implementations:
+- `"cli"` - Uses podman/docker CLI (default)
+- `"api"` - Uses Podman REST API via Unix socket (future)
+
 Key patterns:
 - Embed `test.McpSuite` for MCP server/client setup
 - Use `package mcp_test` (external test package) to avoid import cycles
@@ -257,6 +283,7 @@ The `internal/test/` package provides shared test utilities:
 
 - **`mcp.go`** - Test suite base:
   - `McpSuite` - Uses real podman CLI with mock HTTP backend
+    - `PodmanImpl string` - Field to specify which implementation to use (default: "cli")
     - `CallTool()` - Call MCP tools with typed arguments
     - `CallToolRaw()` - Call MCP tools with raw JSON arguments (for testing malformed input)
     - `ListTools()` - Get list of available MCP tools
@@ -269,6 +296,8 @@ The `internal/test/` package provides shared test utilities:
     - `MockServer.HasRequest()` - Verify API calls were made
     - `GetCapturedRequest()` - Retrieve first captured request details for assertions
     - `PopLastCapturedRequest()` - Retrieve and remove last captured request (for multiple subtests)
+  - `AvailableImplementations()` - Returns list of implementations available for testing
+  - `DefaultImplementation()` - Returns the default implementation name ("cli")
 
 - **`env.go`** - Environment utilities:
   - `RestoreEnv()` - Restore original environment variables after test

@@ -213,24 +213,32 @@ require github.com/containers/podman/v5 v5.x.x
 
 ### Current State
 
-**Phase: Not Started**
+**Phase: 0 (Test Infrastructure Enhancement) - Complete**
 
-No implementation work has begun. The specs document the intended design based on research and discussion.
+Test infrastructure for multi-implementation testing is now in place:
+- `McpSuite.PodmanImpl` field added for implementation selection
+- `NewPodman(override)` accepts optional implementation override
+- `NewServer(...ServerOption)` uses functional options pattern with `WithPodmanImpl()`
+- `AvailableImplementations()` and `DefaultImplementation()` helper functions added
+- All existing CLI tests continue to pass
 
-### Phase 0: Test Infrastructure Enhancement
+### Phase 0: Test Infrastructure Enhancement ✓
 
 **Goal:** Enable testing multiple implementations through the same test suites.
 
 **Spec:** This phase primarily affects test infrastructure, prerequisites for both specs.
 
-1. Update `McpSuite` in `internal/test/mcp.go`:
-   - Add `PodmanImpl string` field
-   - Add mechanism to override implementation at test time
-   - Ensure mock server works for both CLI and API patterns
+**Status: COMPLETE**
 
-2. Refactor existing tests to use parameterized pattern:
-   - Create wrapper test functions for each implementation
-   - Verify existing CLI tests still pass
+1. ✓ Updated `McpSuite` in `internal/test/mcp.go`:
+   - Added `PodmanImpl string` field
+   - Added mechanism to override implementation at test time
+   - Mock server works for both CLI and API patterns
+
+2. ✓ Refactored infrastructure for parameterized tests:
+   - Added `AvailableImplementations()` helper function
+   - Added `DefaultImplementation()` helper function
+   - Existing CLI tests continue to pass
 
 **Deliverable:** Test infrastructure ready for multi-implementation testing.
 
