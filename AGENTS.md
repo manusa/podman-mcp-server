@@ -529,6 +529,37 @@ The server provides 13 tools organized by resource type:
 ### Volume Tools
 - `volume_list` - List volumes
 
+## Feature Specifications
+
+Feature specs in `docs/specs/` are **living documentation** that describe implemented features. Unlike ADRs (which are point-in-time decisions), specs are updated whenever the feature changes.
+
+### Purpose
+
+Specs serve as the authoritative reference for:
+- **Requirements**: What the feature must do (testable statements)
+- **API Contracts**: Endpoints, request/response formats, error codes
+- **Architecture**: Data structures, component relationships, timing
+- **Configuration**: Environment variables, constants, thresholds
+
+### When to Read Specs
+
+**Before modifying a feature**: Read its spec to understand current behavior, requirements, and constraints. The spec tells you what invariants must be preserved.
+
+**Before implementing related features**: Specs document integration points and dependencies.
+
+### When to Update Specs
+
+**After changing a feature**: If you modify behavior, API contracts, timing, or configuration, update the spec to match. The spec must always reflect the current implementation.
+
+**After adding requirements**: New requirements discovered during implementation should be documented.
+
+### Available Specs
+
+| Feature | Spec | Status | Covers |
+|---------|------|--------|--------|
+| Podman Interface | `docs/specs/podman-interface.md` | Planned | `Podman` interface definition, implementation registry, `--podman-impl` flag |
+| Podman REST API Bindings | `docs/specs/podman-rest-api-bindings.md` | Planned | `api` implementation using `pkg/bindings` via Unix socket |
+
 ## Relationship to kubernetes-mcp-server
 
 This project shares patterns and architecture with [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server).
