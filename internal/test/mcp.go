@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/client"
@@ -27,8 +28,20 @@ import (
 //
 // Note: This suite requires a real podman or docker binary to be available.
 // If neither is available, tests using this suite will be skipped.
+//
+// For multi-implementation testing, set the PodmanImpl field before running:
+//
+//	func TestContainerToolsWithCLI(t *testing.T) {
+//	    suite.Run(t, &ContainerToolsSuite{
+//	        McpSuite: test.McpSuite{PodmanImpl: "cli"},
+//	    })
+//	}
 type McpSuite struct {
 	suite.Suite
+	// PodmanImpl specifies which Podman implementation to use for tests.
+	// If empty, uses the default implementation (currently "cli").
+	// Valid values: "cli" (default), "api" (future)
+	PodmanImpl    string
 	originalEnv   []string
 	MockServer    *MockPodmanServer
 	mcpServer     *mcpServer.Server
@@ -39,8 +52,14 @@ type McpSuite struct {
 // SetupTest initializes the mock server, MCP server, and client before each test.
 func (s *McpSuite) SetupTest() {
 	// Check if real podman is available
-	s.Require().True(IsPodmanAvailable(),
-		"podman CLI is not available - install podman to run these tests")
+	if !IsPodmanAvailable() {
+		// On Linux, podman should always be available - fail the test
+		// On other platforms (macOS, Windows), skip if podman is not available
+		if runtime.GOOS == "linux" {
+			s.Require().Fail("podman CLI is not available - install podman to run these tests")
+		}
+		s.T().Skip("podman CLI not available (expected on non-Linux platforms without podman machine)")
+	}
 
 	s.originalEnv = os.Environ()
 	var err error
@@ -52,7 +71,11 @@ func (s *McpSuite) SetupTest() {
 	WithContainerHost(s.T(), s.MockServer.URL())
 
 	// Create MCP server (it will use the real podman binary which talks to mock server)
-	s.mcpServer, err = mcpServer.NewServer()
+	var serverOpts []mcpServer.ServerOption
+	if s.PodmanImpl != "" {
+		serverOpts = append(serverOpts, mcpServer.WithPodmanImpl(s.PodmanImpl))
+	}
+	s.mcpServer, err = mcpServer.NewServer(serverOpts...)
 	s.Require().NoError(err)
 
 	// Wrap in httptest.Server with Streamable HTTP handler
@@ -441,4 +464,28 @@ func (s *McpSuite) GetCapturedRequest(method, pathPattern string) *CapturedReque
 // Returns nil if no matching request is found.
 func (s *McpSuite) PopLastCapturedRequest(method, pathPattern string) *CapturedRequest {
 	return s.MockServer.PopLastRequest(method, pathPattern)
+}
+
+// AvailableImplementations returns the list of Podman implementations available for testing.
+// This can be used to create parameterized tests that run the same suite with different implementations.
+//
+// Example usage with testify/suite:
+//
+//	func TestContainerSuiteWithAllImplementations(t *testing.T) {
+//	    for _, impl := range test.AvailableImplementations() {
+//	        suite.Run(t, &ContainerSuite{
+//	            McpSuite: test.McpSuite{PodmanImpl: impl},
+//	        })
+//	    }
+//	}
+func AvailableImplementations() []string {
+	// Currently only CLI is supported. API implementation will be added in Phase 2.
+	// This function will be updated to include "api" once the implementation is ready.
+	return []string{"cli"}
+}
+
+// DefaultImplementation returns the default Podman implementation for testing.
+// This is the implementation used when PodmanImpl is empty.
+func DefaultImplementation() string {
+	return "cli"
 }

@@ -534,4 +534,3 @@ func (s *ContainerSuite) TestContainerRun() {
 		})
 	})
 }
-

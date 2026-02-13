@@ -4,26 +4,26 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"strings"
 	"testing"
 )
 
-// IsPodmanAvailable checks if the real podman binary is available in PATH.
+// IsPodmanAvailable checks if the real podman binary is available and functional.
+// This uses the same check as newPodmanCli() to ensure consistency - if this returns
+// true, NewPodman() should succeed.
 func IsPodmanAvailable() bool {
-	filePath, err := exec.LookPath("podman")
-	if err != nil {
-		return false
+	for _, cmd := range []string{"podman", "podman.exe"} {
+		filePath, err := exec.LookPath(cmd)
+		if err != nil {
+			continue
+		}
+		// Use "version" subcommand (not --version flag) to match newPodmanCli() behavior.
+		// On macOS/Windows, this requires a running podman machine, which is intentional -
+		// we want to skip tests when podman isn't fully functional.
+		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
+			return true
+		}
 	}
-	// Verify it's actually podman and not our fake binary
-	// Use --version instead of version subcommand to avoid needing a running machine/daemon
-	output, err := exec.Command(filePath, "--version").CombinedOutput()
-	if err != nil {
-		return false
-	}
-	// Real podman outputs "podman version X.Y.Z" (may include additional info after)
-	// Our fake binary would output something different
-	outputStr := strings.TrimSpace(string(output))
-	return strings.HasPrefix(outputStr, "podman version ")
+	return false
 }
 
 // WithContainerHost sets the CONTAINER_HOST environment variable to point to the mock server.
