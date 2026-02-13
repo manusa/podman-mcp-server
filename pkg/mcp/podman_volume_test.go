@@ -1,7 +1,7 @@
 package mcp_test
 
 import (
-	"regexp"
+	"encoding/json"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -49,12 +49,28 @@ func (s *VolumeSuite) TestVolumeList() {
 	s.Run("returns volume data with expected format", func() {
 		text := toolResult.Content[0].(mcp.TextContent).Text
 
-		expectedHeaders := regexp.MustCompile(`(?m)^DRIVER\s+VOLUME NAME\s*$`)
-		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
+		var volumes []test.VolumeResponse
+		s.Require().NoError(json.Unmarshal([]byte(text), &volumes), "output should be valid JSON")
 
-		s.Contains(text, "my-volume", "should contain volume name")
-		s.Contains(text, "data-volume", "should contain second volume name")
-		s.Contains(text, "local", "should contain driver")
+		s.Require().Len(volumes, 2)
+
+		volumesByName := make(map[string]test.VolumeResponse)
+		for _, val := range volumes {
+			volumesByName[val.Name] = val
+		}
+
+		s.Require().Contains(volumesByName, "my-volume", "should contain my-volume volume")
+		s.Require().Contains(volumesByName, "data-volume", "should contain data-volume volume")
+
+		myVolume := volumesByName["my-volume"]
+		s.Equal("local", myVolume.Driver)
+		s.Contains(myVolume.Mountpoint, "/my-volume/_data")
+		s.Equal(map[string]string{"app": "test"}, myVolume.Labels)
+
+		dataVolume := volumesByName["data-volume"]
+		s.Equal("local", dataVolume.Driver)
+		s.Contains(dataVolume.Mountpoint, "/data-volume/_data")
+		s.Nil(dataVolume.Labels, "data-volume should have no labels")
 	})
 
 	s.Run("mock server received volume list request", func() {
