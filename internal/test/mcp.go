@@ -71,8 +71,14 @@ func (s *McpSuite) SetupTest() {
 	// Set CONTAINER_HOST to point to mock server
 	WithContainerHost(s.T(), s.MockServer.URL())
 
-	// Create MCP server (it will use the real podman binary which talks to mock server)
-	cfg := config.WithOverrides(s.Config)
+	// Create MCP server
+	// Default to CLI implementation since the mock server is designed for CLI testing.
+	// The API implementation requires a real Podman socket and proper streaming support.
+	cfg := s.Config
+	if cfg.PodmanImpl == "" {
+		cfg.PodmanImpl = "cli"
+	}
+	cfg = config.WithOverrides(cfg)
 	s.mcpServer, err = mcpServer.NewServer(cfg)
 	s.Require().NoError(err)
 
@@ -472,18 +478,19 @@ func (s *McpSuite) PopLastCapturedRequest(method, pathPattern string) *CapturedR
 //	func TestContainerSuiteWithAllImplementations(t *testing.T) {
 //	    for _, impl := range test.AvailableImplementations() {
 //	        suite.Run(t, &ContainerSuite{
-//	            McpSuite: test.McpSuite{PodmanImpl: impl},
+//	            McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
 //	        })
 //	    }
 //	}
 func AvailableImplementations() []string {
 	// Returns all implementations registered in the registry.
-	// Currently only "cli" is registered. "api" will be added in Phase 2.
+	// Currently "cli" and "api" are registered.
 	return podman.ImplementationNames()
 }
 
 // DefaultImplementation returns the default Podman implementation for testing.
-// This is the implementation used when PodmanImpl is empty.
+// This returns "cli" because the mock server is designed for CLI testing.
+// The API implementation requires a real Podman socket and proper streaming support.
 func DefaultImplementation() string {
-	return podman.DefaultImplementation()
+	return "cli"
 }

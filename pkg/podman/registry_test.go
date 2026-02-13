@@ -140,9 +140,10 @@ func (s *RegistrySuite) TestClear() {
 }
 
 func (s *RegistrySuite) TestDefaultImplementation() {
-	s.Run("returns cli when only cli is registered", func() {
+	s.Run("returns highest priority registered implementation", func() {
 		def := podman.DefaultImplementation()
-		s.Equal("cli", def)
+		// api has priority 100, cli has priority 50
+		s.Equal("api", def)
 	})
 
 	s.Run("returns empty string when registry is empty", func() {
