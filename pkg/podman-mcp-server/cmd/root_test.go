@@ -5,11 +5,29 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
+	"github.com/stretchr/testify/suite"
 )
 
-func captureOutput(args []string) (string, error) {
+type RootCmdSuite struct {
+	suite.Suite
+}
+
+func TestRootCmdSuite(t *testing.T) {
+	suite.Run(t, new(RootCmdSuite))
+}
+
+func (s *RootCmdSuite) SetupTest() {
+	viper.Reset()
+	rootCmd.Flags().VisitAll(func(f *pflag.Flag) {
+		_ = f.Value.Set(f.DefValue)
+		f.Changed = false
+	})
+	_ = viper.BindPFlags(rootCmd.Flags())
+}
+
+func (s *RootCmdSuite) captureOutput(args []string) (string, error) {
 	rootCmd.SetArgs(args)
 
 	originalOut := os.Stdout
@@ -24,64 +42,64 @@ func captureOutput(args []string) (string, error) {
 	return string(out), err
 }
 
-func TestVersion(t *testing.T) {
-	version, err := captureOutput([]string{"--version"})
+func (s *RootCmdSuite) TestVersion() {
+	version, err := s.captureOutput([]string{"--version"})
 
-	assert.NoError(t, err)
-	assert.Equal(t, "0.0.0\n", version)
+	s.NoError(err)
+	s.Equal("0.0.0\n", version)
 }
 
-func TestHelpPortFlag(t *testing.T) {
-	help, err := captureOutput([]string{"--help"})
-	require.NoError(t, err)
+func (s *RootCmdSuite) TestHelpPortFlag() {
+	help, err := s.captureOutput([]string{"--help"})
+	s.Require().NoError(err)
 
-	t.Run("contains port flag with short form", func(t *testing.T) {
-		assert.Regexp(t, `-p, --port int`, help)
+	s.Run("contains port flag with short form", func() {
+		s.Regexp(`-p, --port int`, help)
 	})
 
-	t.Run("contains port flag description", func(t *testing.T) {
-		assert.Regexp(t, `--port int\s+Start HTTP server on the specified port`, help)
+	s.Run("contains port flag description", func() {
+		s.Regexp(`--port int\s+Start HTTP server on the specified port`, help)
 	})
 
-	t.Run("describes Streamable HTTP endpoints", func(t *testing.T) {
-		assert.Contains(t, help, "Streamable HTTP at /mcp and SSE at /sse")
-	})
-}
-
-func TestHelpHidesDeprecatedFlags(t *testing.T) {
-	help, err := captureOutput([]string{"--help"})
-	require.NoError(t, err)
-
-	t.Run("hides deprecated sse-port flag", func(t *testing.T) {
-		assert.NotContains(t, help, "--sse-port")
-	})
-
-	t.Run("hides deprecated sse-base-url flag", func(t *testing.T) {
-		assert.NotContains(t, help, "--sse-base-url")
+	s.Run("describes Streamable HTTP endpoints", func() {
+		s.Contains(help, "Streamable HTTP at /mcp and SSE at /sse")
 	})
 }
 
-func TestHelpPodmanImplFlag(t *testing.T) {
-	help, err := captureOutput([]string{"--help"})
-	require.NoError(t, err)
+func (s *RootCmdSuite) TestHelpHidesDeprecatedFlags() {
+	help, err := s.captureOutput([]string{"--help"})
+	s.Require().NoError(err)
 
-	t.Run("contains podman-impl flag", func(t *testing.T) {
-		assert.Regexp(t, `--podman-impl string`, help)
+	s.Run("hides deprecated sse-port flag", func() {
+		s.NotContains(help, "--sse-port")
 	})
 
-	t.Run("contains flag description", func(t *testing.T) {
-		assert.Regexp(t, `--podman-impl string\s+Podman implementation to use`, help)
+	s.Run("hides deprecated sse-base-url flag", func() {
+		s.NotContains(help, "--sse-base-url")
+	})
+}
+
+func (s *RootCmdSuite) TestHelpPodmanImplFlag() {
+	help, err := s.captureOutput([]string{"--help"})
+	s.Require().NoError(err)
+
+	s.Run("contains podman-impl flag", func() {
+		s.Regexp(`--podman-impl string`, help)
 	})
 
-	t.Run("lists available implementations", func(t *testing.T) {
-		assert.Regexp(t, `\(available: [a-z, ]+\)`, help)
+	s.Run("contains flag description", func() {
+		s.Regexp(`--podman-impl string\s+Podman implementation to use`, help)
 	})
 
-	t.Run("includes cli in available implementations", func(t *testing.T) {
-		assert.Regexp(t, `\(available:.*cli.*\)`, help)
+	s.Run("lists available implementations", func() {
+		s.Regexp(`\(available: [a-z, ]+\)`, help)
 	})
 
-	t.Run("mentions auto-detection", func(t *testing.T) {
-		assert.Regexp(t, `Auto-detects if not specified`, help)
+	s.Run("includes cli in available implementations", func() {
+		s.Regexp(`\(available:.*cli.*\)`, help)
+	})
+
+	s.Run("mentions auto-detection", func() {
+		s.Regexp(`Auto-detects if not specified`, help)
 	})
 }
