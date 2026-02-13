@@ -7,8 +7,63 @@ import (
 	"strings"
 )
 
+func init() {
+	Register(&podmanCli{})
+}
+
 type podmanCli struct {
 	filePath string
+}
+
+// Name returns the unique identifier for this implementation.
+func (p *podmanCli) Name() string {
+	return "cli"
+}
+
+// Description returns a human-readable description for help text.
+func (p *podmanCli) Description() string {
+	return "Podman CLI wrapper"
+}
+
+// Available returns true if this implementation can be used.
+// It checks if a podman binary is available in the PATH.
+func (p *podmanCli) Available() bool {
+	_, err := findBinary()
+	return err == nil
+}
+
+// Priority returns the priority for auto-detection.
+// CLI has priority 50 (lower than API which has 100).
+func (p *podmanCli) Priority() int {
+	return 50
+}
+
+// New creates and initializes a new podmanCli instance.
+// It finds the podman binary in PATH and verifies it works.
+func (p *podmanCli) New() (Podman, error) {
+	filePath, err := findBinary()
+	if err != nil {
+		return nil, err
+	}
+	return &podmanCli{filePath: filePath}, nil
+}
+
+// findBinary searches for a working podman binary in PATH.
+// It tries "podman" and "podman.exe" in order, returning the first
+// one that exists and responds successfully to "version" command.
+// Note: On Windows, LookPath("podman") uses PATHEXT to find .exe/.cmd/etc,
+// making "podman.exe" redundant. We keep it as fallback in case PATHEXT is overridden.
+func findBinary() (string, error) {
+	for _, cmd := range []string{"podman", "podman.exe"} {
+		filePath, err := exec.LookPath(cmd)
+		if err != nil {
+			continue
+		}
+		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
+			return filePath, nil
+		}
+	}
+	return "", errors.New("podman CLI not found")
 }
 
 // ContainerInspect
@@ -131,17 +186,4 @@ func (p *podmanCli) VolumeList() (string, error) {
 func (p *podmanCli) exec(args ...string) (string, error) {
 	output, err := exec.Command(p.filePath, args...).CombinedOutput()
 	return string(output), err
-}
-
-func newPodmanCli() (*podmanCli, error) {
-	for _, cmd := range []string{"podman", "podman.exe"} {
-		filePath, err := exec.LookPath(cmd)
-		if err != nil {
-			continue
-		}
-		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
-			return &podmanCli{filePath}, nil
-		}
-	}
-	return nil, errors.New("podman CLI not found")
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	mcpServer "github.com/manusa/podman-mcp-server/pkg/mcp"
+	"github.com/manusa/podman-mcp-server/pkg/podman"
 )
 
 // McpSuite is a test suite that uses a mock Podman API server
@@ -479,13 +480,13 @@ func (s *McpSuite) PopLastCapturedRequest(method, pathPattern string) *CapturedR
 //	    }
 //	}
 func AvailableImplementations() []string {
-	// Currently only CLI is supported. API implementation will be added in Phase 2.
-	// This function will be updated to include "api" once the implementation is ready.
-	return []string{"cli"}
+	// Returns all implementations registered in the registry.
+	// Currently only "cli" is registered. "api" will be added in Phase 2.
+	return podman.ImplementationNames()
 }
 
 // DefaultImplementation returns the default Podman implementation for testing.
 // This is the implementation used when PodmanImpl is empty.
 func DefaultImplementation() string {
-	return "cli"
+	return podman.DefaultImplementation()
 }

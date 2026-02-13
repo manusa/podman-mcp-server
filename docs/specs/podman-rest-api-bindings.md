@@ -213,14 +213,14 @@ require github.com/containers/podman/v5 v5.x.x
 
 ### Current State
 
-**Phase: 0 (Test Infrastructure Enhancement) - Complete**
+**Phase: 1 (Implementation Registry) - Complete**
 
-Test infrastructure for multi-implementation testing is now in place:
-- `McpSuite.PodmanImpl` field added for implementation selection
-- `NewPodman(override)` accepts optional implementation override
-- `NewServer(...ServerOption)` uses functional options pattern with `WithPodmanImpl()`
-- `AvailableImplementations()` and `DefaultImplementation()` helper functions added
-- All existing CLI tests continue to pass
+Implementation registry pattern is now in place:
+- `pkg/podman/registry.go` with `Implementation` interface and registry functions
+- CLI implementation registered via `init()` with metadata methods
+- `NewPodman(override)` uses registry for implementation selection
+- `--podman-impl` CLI flag available with dynamic help text
+- All tests pass
 
 ### Phase 0: Test Infrastructure Enhancement ✓
 
@@ -242,27 +242,30 @@ Test infrastructure for multi-implementation testing is now in place:
 
 **Deliverable:** Test infrastructure ready for multi-implementation testing.
 
-### Phase 1: Implementation Registry
+### Phase 1: Implementation Registry ✓
 
 **Goal:** Add registry pattern per [podman-interface.md](./podman-interface.md).
 
 **Spec:** [Podman Interface](./podman-interface.md)
 
-1. Create `pkg/podman/registry.go` with:
-   - `Implementation` interface
+**Status: COMPLETE**
+
+1. ✓ Created `pkg/podman/registry.go` with:
+   - `Implementation` interface (`Name()`, `Description()`, `Available()`, `Priority()`)
    - `Register()`, `Implementations()`, `ImplementationNames()`, `ImplementationFromString()`
    - `Clear()` for testing
+   - Error types: `ErrNoImplementationAvailable`, `ErrImplementationNotAvailable`
 
-2. Refactor existing CLI implementation to use registry:
-   - Add `Name()`, `Description()`, `Available()`, `Priority()` methods
-   - Register via `init()` function
+2. ✓ Refactored existing CLI implementation to use registry:
+   - Added `Name()`, `Description()`, `Available()`, `Priority()` methods
+   - Registered via `init()` function with priority 50
 
-3. Update `NewPodman()` in `interface.go`:
-   - Accept optional override parameter
-   - Use registry for implementation selection
-   - Maintain backward compatibility (empty override = auto-detect)
+3. ✓ Updated `NewPodman()` in `interface.go`:
+   - Uses registry for implementation selection
+   - Auto-detects by priority when no override specified
+   - Returns specific error types for different failure modes
 
-4. Add `--podman-impl` CLI flag with dynamic help text listing implementations
+4. ✓ Added `--podman-impl` CLI flag with dynamic help text listing implementations
 
 **Deliverable:** Registry pattern works, CLI implementation registered, flag available.
 
