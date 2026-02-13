@@ -13,7 +13,13 @@ LD_FLAGS = -s -w \
 	-X '$(PACKAGE)/pkg/version.Version=$(GIT_VERSION)' \
 	-X '$(PACKAGE)/pkg/version.BuildTime=$(BUILD_TIME)' \
 	-X '$(PACKAGE)/pkg/version.BinaryName=$(BINARY_NAME)'
-COMMON_BUILD_ARGS = -ldflags "$(LD_FLAGS)"
+# Build tags for Podman bindings compatibility:
+# - remote: Use remote client mode (no local daemon required)
+# - containers_image_openpgp: Use pure Go OpenPGP instead of gpgme (C library)
+# - exclude_graphdriver_btrfs, btrfs_noversion: Exclude btrfs driver (requires C library)
+# - exclude_graphdriver_devicemapper: Exclude devicemapper driver (requires C library)
+BUILD_TAGS = remote,containers_image_openpgp,exclude_graphdriver_btrfs,btrfs_noversion,exclude_graphdriver_devicemapper
+COMMON_BUILD_ARGS = -tags "$(BUILD_TAGS)" -ldflags "$(LD_FLAGS)"
 
 GOLANGCI_LINT = $(shell pwd)/_output/tools/bin/golangci-lint
 GOLANGCI_LINT_VERSION ?= v2.8.0
@@ -56,11 +62,11 @@ build-all-platforms: clean tidy format lint ## Build the project for all platfor
 
 .PHONY: test
 test: ## Run the tests
-	go test -count=1 -v ./...
+	go test -tags "$(BUILD_TAGS)" -count=1 -v ./...
 
 .PHONY: test-update-snapshots
 test-update-snapshots: ## Update test snapshots
-	UPDATE_SNAPSHOTS=1 go test -count=1 -v ./...
+	UPDATE_SNAPSHOTS=1 go test -tags "$(BUILD_TAGS)" -count=1 -v ./...
 
 .PHONY: format
 format: ## Format the code
@@ -80,7 +86,7 @@ golangci-lint:
 
 .PHONY: lint
 lint: golangci-lint ## Lint the code
-	$(GOLANGCI_LINT) run --verbose
+	$(GOLANGCI_LINT) run --verbose --build-tags "$(BUILD_TAGS)"
 
 .PHONY: update-readme-tools
 update-readme-tools: ## Update the README.md file with the latest tools
