@@ -51,6 +51,8 @@ func (p *podmanCli) New() (Podman, error) {
 // findBinary searches for a working podman binary in PATH.
 // It tries "podman" and "podman.exe" in order, returning the first
 // one that exists and responds successfully to "version" command.
+// Note: On Windows, LookPath("podman") uses PATHEXT to find .exe/.cmd/etc,
+// making "podman.exe" redundant. We keep it as fallback in case PATHEXT is overridden.
 func findBinary() (string, error) {
 	for _, cmd := range []string{"podman", "podman.exe"} {
 		filePath, err := exec.LookPath(cmd)

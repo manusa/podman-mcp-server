@@ -41,7 +41,7 @@ func (s *PodmanCliSuite) TearDownTest() {
 
 // createMockBinariesInPath creates mock executables and sets PATH to their directory.
 // On Unix, it creates shell scripts that exit successfully.
-// On Windows, it creates .exe placeholders.
+// On Windows, it creates batch files (.cmd) that exit successfully.
 // Returns the temp directory path (auto-cleaned up by t.TempDir()).
 func (s *PodmanCliSuite) createMockBinariesInPath(names ...string) string {
 	tmpDir := s.T().TempDir()
@@ -50,12 +50,14 @@ func (s *PodmanCliSuite) createMockBinariesInPath(names ...string) string {
 		var path string
 
 		if runtime.GOOS == "windows" {
-			path = filepath.Join(tmpDir, name)
-			if filepath.Ext(name) == "" {
-				path += ".exe"
+			// Strip any extension and use .cmd for batch files
+			baseName := name
+			if ext := filepath.Ext(name); ext != "" {
+				baseName = name[:len(name)-len(ext)]
 			}
-			// Windows batch-style content (though we're creating .exe placeholder)
-			content = ""
+			path = filepath.Join(tmpDir, baseName+".cmd")
+			// Batch file that exits successfully
+			content = "@exit /b 0\r\n"
 		} else {
 			path = filepath.Join(tmpDir, name)
 			// Shell script that exits successfully
@@ -140,12 +142,16 @@ func (s *PodmanCliSuite) TestCLINew() {
 
 	s.Run("fails when binary exists but version command fails", func() {
 		tmpDir := s.createMockBinariesInPath() // Sets PATH to tmpDir
-		// Overwrite with a binary that fails (exits with non-zero)
-		binaryPath := filepath.Join(tmpDir, "podman")
+		// Create a binary that fails (exits with non-zero)
+		var binaryPath, content string
 		if runtime.GOOS == "windows" {
-			binaryPath += ".exe"
+			binaryPath = filepath.Join(tmpDir, "podman.cmd")
+			content = "@exit /b 1\r\n"
+		} else {
+			binaryPath = filepath.Join(tmpDir, "podman")
+			content = "#!/bin/sh\nexit 1\n"
 		}
-		err := os.WriteFile(binaryPath, []byte("#!/bin/sh\nexit 1\n"), 0755)
+		err := os.WriteFile(binaryPath, []byte(content), 0755)
 		s.Require().NoError(err)
 
 		_, err = impl.New()
