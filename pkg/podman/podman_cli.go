@@ -20,7 +20,7 @@ func (p *podmanCli) ContainerInspect(name string) (string, error) {
 // ContainerList
 // https://docs.podman.io/en/stable/markdown/podman-ps.1.html
 func (p *podmanCli) ContainerList() (string, error) {
-	return p.exec("container", "list", "-a")
+	return p.exec("container", "list", "-a", "--format", "json")
 }
 
 // ContainerLogs
@@ -81,7 +81,7 @@ func (p *podmanCli) ImageBuild(containerFile string, imageName string) (string, 
 // ImageList
 // https://docs.podman.io/en/stable/markdown/podman-images.1.html
 func (p *podmanCli) ImageList() (string, error) {
-	return p.exec("images", "--digests")
+	return p.exec("images", "--digests", "--format", "json")
 }
 
 // ImagePull
@@ -119,13 +119,13 @@ func (p *podmanCli) ImageRemove(imageName string) (string, error) {
 // NetworkList
 // https://docs.podman.io/en/stable/markdown/podman-network-ls.1.html
 func (p *podmanCli) NetworkList() (string, error) {
-	return p.exec("network", "ls")
+	return p.exec("network", "ls", "--format", "json")
 }
 
 // VolumeList
 // https://docs.podman.io/en/stable/markdown/podman-volume-ls.1.html
 func (p *podmanCli) VolumeList() (string, error) {
-	return p.exec("volume", "ls")
+	return p.exec("volume", "ls", "--format", "json")
 }
 
 func (p *podmanCli) exec(args ...string) (string, error) {
