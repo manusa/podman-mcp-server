@@ -26,18 +26,10 @@ func (p *podmanCli) Description() string {
 }
 
 // Available returns true if this implementation can be used.
-// It checks if a podman or docker binary is available in the PATH.
+// It checks if a podman binary is available in the PATH.
 func (p *podmanCli) Available() bool {
-	for _, cmd := range []string{"podman", "podman.exe"} {
-		filePath, err := exec.LookPath(cmd)
-		if err != nil {
-			continue
-		}
-		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
-			return true
-		}
-	}
-	return false
+	_, err := findBinary()
+	return err == nil
 }
 
 // Priority returns the priority for auto-detection.
@@ -49,16 +41,27 @@ func (p *podmanCli) Priority() int {
 // New creates and initializes a new podmanCli instance.
 // It finds the podman binary in PATH and verifies it works.
 func (p *podmanCli) New() (Podman, error) {
+	filePath, err := findBinary()
+	if err != nil {
+		return nil, err
+	}
+	return &podmanCli{filePath: filePath}, nil
+}
+
+// findBinary searches for a working podman binary in PATH.
+// It tries "podman" and "podman.exe" in order, returning the first
+// one that exists and responds successfully to "version" command.
+func findBinary() (string, error) {
 	for _, cmd := range []string{"podman", "podman.exe"} {
 		filePath, err := exec.LookPath(cmd)
 		if err != nil {
 			continue
 		}
 		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
-			return &podmanCli{filePath: filePath}, nil
+			return filePath, nil
 		}
 	}
-	return nil, errors.New("podman CLI not found")
+	return "", errors.New("podman CLI not found")
 }
 
 // ContainerInspect

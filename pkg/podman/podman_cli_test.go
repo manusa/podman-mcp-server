@@ -39,28 +39,34 @@ func (s *PodmanCliSuite) TearDownTest() {
 	}
 }
 
-// createMockBinary creates a mock executable in the given directory.
-// On Unix, it creates a shell script. On Windows, it would create a batch file.
-func (s *PodmanCliSuite) createMockBinary(dir, name string) string {
-	var content string
-	var path string
+// createMockBinariesInPath creates mock executables and sets PATH to their directory.
+// On Unix, it creates shell scripts that exit successfully.
+// On Windows, it creates .exe placeholders.
+// Returns the temp directory path (auto-cleaned up by t.TempDir()).
+func (s *PodmanCliSuite) createMockBinariesInPath(names ...string) string {
+	tmpDir := s.T().TempDir()
+	for _, name := range names {
+		var content string
+		var path string
 
-	if runtime.GOOS == "windows" {
-		path = filepath.Join(dir, name)
-		if filepath.Ext(name) == "" {
-			path += ".exe"
+		if runtime.GOOS == "windows" {
+			path = filepath.Join(tmpDir, name)
+			if filepath.Ext(name) == "" {
+				path += ".exe"
+			}
+			// Windows batch-style content (though we're creating .exe placeholder)
+			content = ""
+		} else {
+			path = filepath.Join(tmpDir, name)
+			// Shell script that exits successfully
+			content = "#!/bin/sh\nexit 0\n"
 		}
-		// Windows batch-style content (though we're creating .exe placeholder)
-		content = ""
-	} else {
-		path = filepath.Join(dir, name)
-		// Shell script that exits successfully
-		content = "#!/bin/sh\nexit 0\n"
-	}
 
-	err := os.WriteFile(path, []byte(content), 0755)
-	s.Require().NoError(err)
-	return path
+		err := os.WriteFile(path, []byte(content), 0755)
+		s.Require().NoError(err)
+	}
+	_ = os.Setenv("PATH", tmpDir)
+	return tmpDir
 }
 
 func (s *PodmanCliSuite) TestCLIImplementationMetadata() {
@@ -85,27 +91,17 @@ func (s *PodmanCliSuite) TestCLIAvailable() {
 	s.Require().NotNil(impl)
 
 	s.Run("returns true when podman is in PATH", func() {
-		// Create temp dir with mock podman binary
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman")
 		s.True(impl.Available())
 	})
 
 	s.Run("returns true when podman.exe is in PATH", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman.exe")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman.exe")
 		s.True(impl.Available())
 	})
 
 	s.Run("returns false when no podman binary in PATH", func() {
-		tmpDir := s.T().TempDir()
-		// Empty directory - no binaries
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath() // Empty PATH
 		s.False(impl.Available())
 	})
 }
@@ -115,56 +111,42 @@ func (s *PodmanCliSuite) TestCLINew() {
 	s.Require().NotNil(impl)
 
 	s.Run("succeeds when podman is in PATH", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman")
 		p, err := impl.New()
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("succeeds when podman.exe is in PATH", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman.exe")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman.exe")
 		p, err := impl.New()
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
-	s.Run("prefers podman over podman.exe when both exist", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman")
-		s.createMockBinary(tmpDir, "podman.exe")
-		_ = os.Setenv("PATH", tmpDir)
-
+	s.Run("succeeds when both podman and podman.exe exist", func() {
+		s.createMockBinariesInPath("podman", "podman.exe")
 		p, err := impl.New()
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("fails when no binary is in PATH", func() {
-		tmpDir := s.T().TempDir()
-		// Empty directory - no binaries
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath() // Empty PATH
 		_, err := impl.New()
 		s.Error(err)
 		s.Contains(err.Error(), "podman CLI not found")
 	})
 
 	s.Run("fails when binary exists but version command fails", func() {
-		tmpDir := s.T().TempDir()
-		// Create a binary that fails (exits with non-zero)
+		tmpDir := s.createMockBinariesInPath() // Sets PATH to tmpDir
+		// Overwrite with a binary that fails (exits with non-zero)
 		binaryPath := filepath.Join(tmpDir, "podman")
 		if runtime.GOOS == "windows" {
 			binaryPath += ".exe"
 		}
 		err := os.WriteFile(binaryPath, []byte("#!/bin/sh\nexit 1\n"), 0755)
 		s.Require().NoError(err)
-		_ = os.Setenv("PATH", tmpDir)
 
 		_, err = impl.New()
 		s.Error(err)
@@ -174,30 +156,21 @@ func (s *PodmanCliSuite) TestCLINew() {
 
 func (s *PodmanCliSuite) TestNewPodmanWithCLI() {
 	s.Run("empty override returns CLI implementation", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman")
 		p, err := podman.NewPodman("")
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("explicit cli override returns CLI implementation", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman")
 		p, err := podman.NewPodman("cli")
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("cli override fails when podman not available", func() {
-		tmpDir := s.T().TempDir()
-		// Empty directory - no binaries
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath() // Empty PATH
 		_, err := podman.NewPodman("cli")
 		s.Error(err)
 
@@ -209,20 +182,14 @@ func (s *PodmanCliSuite) TestNewPodmanWithCLI() {
 
 func (s *PodmanCliSuite) TestNewPodmanAutoDetectionWithCLI() {
 	s.Run("auto-detects CLI when available", func() {
-		tmpDir := s.T().TempDir()
-		s.createMockBinary(tmpDir, "podman")
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath("podman")
 		p, err := podman.NewPodman()
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("returns error when CLI not available and no other implementations", func() {
-		tmpDir := s.T().TempDir()
-		// Empty directory - no binaries
-		_ = os.Setenv("PATH", tmpDir)
-
+		s.createMockBinariesInPath() // Empty PATH
 		_, err := podman.NewPodman()
 		s.Error(err)
 
@@ -233,6 +200,10 @@ func (s *PodmanCliSuite) TestNewPodmanAutoDetectionWithCLI() {
 }
 
 func (s *PodmanCliSuite) TestCLINewWithRealBinary() {
+	if runtime.GOOS != "linux" {
+		s.T().Skip("real podman binary tests only run on Linux")
+	}
+
 	// This test verifies behavior with the actual podman binary if available
 	impl := podman.ImplementationFromString("cli")
 	s.Require().NotNil(impl)
