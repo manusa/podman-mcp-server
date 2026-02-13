@@ -53,7 +53,7 @@ func NewPodman(override ...string) (Podman, error) {
 		if !impl.Available() {
 			return nil, &ErrImplementationNotAvailable{Name: implName, Reason: "not available on this system"}
 		}
-		return initializeImplementation(impl)
+		return impl.New()
 	}
 
 	// Auto-detect: sort by priority (descending) and return first available
@@ -62,26 +62,15 @@ func NewPodman(override ...string) (Podman, error) {
 		return impls[i].Priority() > impls[j].Priority()
 	})
 
-	var details []string
+	var tried []string
 	for _, impl := range impls {
 		if impl.Available() {
-			return initializeImplementation(impl)
+			return impl.New()
 		}
-		details = append(details, impl.Name()+" (not available)")
+		tried = append(tried, impl.Name()+" (not available)")
 	}
 
-	return nil, &ErrNoImplementationAvailable{Details: details}
-}
-
-// initializeImplementation initializes and returns a Podman implementation.
-// For CLI implementation, this ensures the binary path is resolved.
-func initializeImplementation(impl Implementation) (Podman, error) {
-	// For CLI implementation, we need to initialize the file path
-	if cliImpl, ok := impl.(*podmanCli); ok {
-		return newPodmanCli(cliImpl)
-	}
-	// For other implementations (future: api), return as-is
-	return impl, nil
+	return nil, &ErrNoImplementationAvailable{TriedImplementations: tried}
 }
 
 // ErrUnknownImplementation is returned when an invalid implementation is specified.

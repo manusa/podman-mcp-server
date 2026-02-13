@@ -7,14 +7,14 @@ import (
 )
 
 // Implementation represents a Podman implementation with metadata.
-// Each implementation must satisfy both the Podman interface and provide
-// metadata for registration, discovery, and selection.
+// Each implementation must provide metadata for registration, discovery,
+// and selection, plus a factory method to create initialized instances.
 type Implementation interface {
-	Podman
-	Name() string        // Unique identifier (e.g., "cli", "api")
-	Description() string // Human-readable description for help text
-	Available() bool     // Whether this implementation can be used
-	Priority() int       // Higher priority = tried first in auto-detection
+	Name() string         // Unique identifier (e.g., "cli", "api")
+	Description() string  // Human-readable description for help text
+	Available() bool      // Whether this implementation can be used
+	Priority() int        // Higher priority = tried first in auto-detection
+	New() (Podman, error) // Creates and initializes a new instance
 }
 
 var (
@@ -74,13 +74,33 @@ func Clear() {
 	implementations = nil
 }
 
+// DefaultImplementation returns the name of the default implementation.
+// This is the implementation that would be selected during auto-detection
+// when multiple implementations are available (highest priority wins).
+// Returns empty string if no implementations are registered.
+func DefaultImplementation() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	if len(implementations) == 0 {
+		return ""
+	}
+	// Find highest priority implementation
+	best := implementations[0]
+	for _, impl := range implementations[1:] {
+		if impl.Priority() > best.Priority() {
+			best = impl
+		}
+	}
+	return best.Name()
+}
+
 // ErrNoImplementationAvailable is returned when no implementation is available.
 type ErrNoImplementationAvailable struct {
-	Details []string // Status of each implementation
+	TriedImplementations []string // Status of each implementation that was tried
 }
 
 func (e *ErrNoImplementationAvailable) Error() string {
-	return "no podman implementation available: " + strings.Join(e.Details, ", ")
+	return "no podman implementation available: " + strings.Join(e.TriedImplementations, ", ")
 }
 
 // ErrImplementationNotAvailable is returned when a specific implementation is not available.

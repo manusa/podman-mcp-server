@@ -22,7 +22,7 @@ func (p *podmanCli) Name() string {
 
 // Description returns a human-readable description for help text.
 func (p *podmanCli) Description() string {
-	return "Podman/Docker CLI wrapper"
+	return "Podman CLI wrapper"
 }
 
 // Available returns true if this implementation can be used.
@@ -44,6 +44,21 @@ func (p *podmanCli) Available() bool {
 // CLI has priority 50 (lower than API which has 100).
 func (p *podmanCli) Priority() int {
 	return 50
+}
+
+// New creates and initializes a new podmanCli instance.
+// It finds the podman binary in PATH and verifies it works.
+func (p *podmanCli) New() (Podman, error) {
+	for _, cmd := range []string{"podman", "podman.exe"} {
+		filePath, err := exec.LookPath(cmd)
+		if err != nil {
+			continue
+		}
+		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
+			return &podmanCli{filePath: filePath}, nil
+		}
+	}
+	return nil, errors.New("podman CLI not found")
 }
 
 // ContainerInspect
@@ -166,20 +181,4 @@ func (p *podmanCli) VolumeList() (string, error) {
 func (p *podmanCli) exec(args ...string) (string, error) {
 	output, err := exec.Command(p.filePath, args...).CombinedOutput()
 	return string(output), err
-}
-
-// newPodmanCli initializes a podmanCli instance with the binary path.
-// It accepts an existing instance (from the registry) and finds the binary.
-func newPodmanCli(p *podmanCli) (*podmanCli, error) {
-	for _, cmd := range []string{"podman", "podman.exe"} {
-		filePath, err := exec.LookPath(cmd)
-		if err != nil {
-			continue
-		}
-		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
-			p.filePath = filePath
-			return p, nil
-		}
-	}
-	return nil, errors.New("podman CLI not found")
 }

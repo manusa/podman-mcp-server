@@ -488,7 +488,5 @@ func AvailableImplementations() []string {
 // DefaultImplementation returns the default Podman implementation for testing.
 // This is the implementation used when PodmanImpl is empty.
 func DefaultImplementation() string {
-	// Returns "cli" as the default, which matches the auto-detection behavior
-	// when only CLI is registered (CLI has priority 50).
-	return "cli"
+	return podman.DefaultImplementation()
 }
