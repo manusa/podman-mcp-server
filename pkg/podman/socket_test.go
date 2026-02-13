@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -133,6 +134,9 @@ func (s *SocketSuite) TestPingSocket() {
 	})
 
 	s.Run("succeeds with valid unix socket", func() {
+		if runtime.GOOS != "linux" {
+			s.T().Skip("Unix socket tests only run on Linux")
+		}
 		// Create a temporary socket
 		tmpDir := s.T().TempDir()
 		socketPath := filepath.Join(tmpDir, "test.sock")
@@ -173,6 +177,9 @@ func (s *SocketSuite) TestPingSocket() {
 	})
 
 	s.Run("returns error for non-Podman endpoint", func() {
+		if runtime.GOOS != "linux" {
+			s.T().Skip("Unix socket tests only run on Linux")
+		}
 		// Create a temporary socket that returns a non-200 response
 		tmpDir := s.T().TempDir()
 		socketPath := filepath.Join(tmpDir, "test.sock")

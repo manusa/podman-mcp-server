@@ -14,6 +14,8 @@ import (
 	"github.com/containers/podman/v5/pkg/bindings/images"
 	"github.com/containers/podman/v5/pkg/bindings/network"
 	"github.com/containers/podman/v5/pkg/bindings/volumes"
+
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 func init() {
@@ -54,8 +56,8 @@ func (p *podmanApi) Priority() int {
 	return 100
 }
 
-// New creates and initializes a new podmanApi instance.
-func (p *podmanApi) New() (Podman, error) {
+// Initialize creates and initializes a new podmanApi instance.
+func (p *podmanApi) Initialize(_ config.Config) (Podman, error) {
 	instance := &podmanApi{}
 	if err := instance.ensureConnection(); err != nil {
 		return nil, err
