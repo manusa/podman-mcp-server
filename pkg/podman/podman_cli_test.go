@@ -39,7 +39,11 @@ func (s *PodmanCliSuite) TestNewPodmanCliNotFound() {
 	_, err := podman.NewPodman()
 
 	s.Error(err, "should return an error when podman CLI is not found")
-	s.Contains(err.Error(), "podman CLI not found")
+	// Check it's the right error type
+	var noImplErr *podman.ErrNoImplementationAvailable
+	s.ErrorAs(err, &noImplErr)
+	s.Contains(err.Error(), "no podman implementation available")
+	s.Contains(err.Error(), "cli")
 }
 
 func (s *PodmanCliSuite) TestNewPodmanWithOverride() {

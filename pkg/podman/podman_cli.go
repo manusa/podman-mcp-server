@@ -7,8 +7,43 @@ import (
 	"strings"
 )
 
+func init() {
+	Register(&podmanCli{})
+}
+
 type podmanCli struct {
 	filePath string
+}
+
+// Name returns the unique identifier for this implementation.
+func (p *podmanCli) Name() string {
+	return "cli"
+}
+
+// Description returns a human-readable description for help text.
+func (p *podmanCli) Description() string {
+	return "Podman/Docker CLI wrapper"
+}
+
+// Available returns true if this implementation can be used.
+// It checks if a podman or docker binary is available in the PATH.
+func (p *podmanCli) Available() bool {
+	for _, cmd := range []string{"podman", "podman.exe"} {
+		filePath, err := exec.LookPath(cmd)
+		if err != nil {
+			continue
+		}
+		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
+// Priority returns the priority for auto-detection.
+// CLI has priority 50 (lower than API which has 100).
+func (p *podmanCli) Priority() int {
+	return 50
 }
 
 // ContainerInspect
@@ -133,14 +168,17 @@ func (p *podmanCli) exec(args ...string) (string, error) {
 	return string(output), err
 }
 
-func newPodmanCli() (*podmanCli, error) {
+// newPodmanCli initializes a podmanCli instance with the binary path.
+// It accepts an existing instance (from the registry) and finds the binary.
+func newPodmanCli(p *podmanCli) (*podmanCli, error) {
 	for _, cmd := range []string{"podman", "podman.exe"} {
 		filePath, err := exec.LookPath(cmd)
 		if err != nil {
 			continue
 		}
 		if _, err = exec.Command(filePath, "version").CombinedOutput(); err == nil {
-			return &podmanCli{filePath}, nil
+			p.filePath = filePath
+			return p, nil
 		}
 	}
 	return nil, errors.New("podman CLI not found")

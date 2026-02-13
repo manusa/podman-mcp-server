@@ -57,3 +57,21 @@ func TestHelpHidesDeprecatedFlags(t *testing.T) {
 		t.Fatalf("Expected help to NOT contain deprecated --sse-base-url flag, got %s", help)
 	}
 }
+
+func TestHelpContainsPodmanImplFlag(t *testing.T) {
+	rootCmd.SetArgs([]string{"--help"})
+	help, err := captureOutput(rootCmd.Execute)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if !strings.Contains(help, "--podman-impl") {
+		t.Fatalf("Expected help to contain --podman-impl flag, got %s", help)
+	}
+	// Check that available implementations are listed
+	if !strings.Contains(help, "available:") {
+		t.Fatalf("Expected help to list available implementations, got %s", help)
+	}
+	if !strings.Contains(help, "cli") {
+		t.Fatalf("Expected help to list 'cli' implementation, got %s", help)
+	}
+}

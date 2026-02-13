@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/manusa/podman-mcp-server/pkg/mcp"
+	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/manusa/podman-mcp-server/pkg/version"
 )
 
@@ -50,7 +52,11 @@ Podman Model Context Protocol (MCP) server
 			cancel()
 		}()
 
-		mcpServer, err := mcp.NewServer()
+		var serverOpts []mcp.ServerOption
+		if podmanImpl := viper.GetString("podman-impl"); podmanImpl != "" {
+			serverOpts = append(serverOpts, mcp.WithPodmanImpl(podmanImpl))
+		}
+		mcpServer, err := mcp.NewServer(serverOpts...)
 		if err != nil {
 			panic(err)
 		}
@@ -99,6 +105,7 @@ func init() {
 	rootCmd.Flags().IntP("port", "p", 0, "Start HTTP server on the specified port (Streamable HTTP at /mcp and SSE at /sse)")
 	rootCmd.Flags().IntP("sse-port", "", 0, "Start a legacy SSE-only server on the specified port")
 	rootCmd.Flags().StringP("sse-base-url", "", "", "SSE public base URL to use when sending the endpoint message (e.g. https://example.com)")
+	rootCmd.Flags().StringP("podman-impl", "", "", "Podman implementation to use (available: "+strings.Join(podman.ImplementationNames(), ", ")+"). Auto-detects if not specified.")
 	_ = rootCmd.Flags().MarkDeprecated("sse-port", "use --port instead")
 	_ = rootCmd.Flags().MarkDeprecated("sse-base-url", "use --port instead")
 	_ = viper.BindPFlags(rootCmd.Flags())

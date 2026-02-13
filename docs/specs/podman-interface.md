@@ -6,7 +6,7 @@ The `Podman` interface abstracts container runtime operations, allowing multiple
 
 ## Status
 
-**Not yet implemented.** This spec will be implemented as part of [Podman REST API Bindings](./podman-rest-api-bindings.md).
+**Partially implemented.** The registry pattern and CLI implementation are complete (Phase 1). The `api` implementation will be added as part of [Podman REST API Bindings](./podman-rest-api-bindings.md) Phase 2.
 
 ## Requirements
 

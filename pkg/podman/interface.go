@@ -1,6 +1,9 @@
 package podman
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // Podman interface
 type Podman interface {
@@ -33,24 +36,52 @@ type Podman interface {
 }
 
 // NewPodman returns a Podman implementation.
-// If override is empty or not provided, auto-detects by using the default implementation.
+// If override is empty or not provided, auto-detects by iterating implementations by priority.
 // If override is specified, returns that implementation or error if unavailable.
-// Currently supported implementations:
-//   - "cli" (default): Uses podman/docker CLI
-//   - Future: "api" will use Podman REST API via Unix socket
 func NewPodman(override ...string) (Podman, error) {
-	impl := ""
+	implName := ""
 	if len(override) > 0 {
-		impl = override[0]
+		implName = override[0]
 	}
-	// TODO: implement registry pattern with multiple implementations (Phase 1)
-	// For now, only CLI is supported
-	switch impl {
-	case "", "cli":
-		return newPodmanCli()
-	default:
-		return nil, &ErrUnknownImplementation{Name: impl, Available: []string{"cli"}}
+
+	if implName != "" {
+		// User specified an implementation
+		impl := ImplementationFromString(implName)
+		if impl == nil {
+			return nil, &ErrUnknownImplementation{Name: implName, Available: ImplementationNames()}
+		}
+		if !impl.Available() {
+			return nil, &ErrImplementationNotAvailable{Name: implName, Reason: "not available on this system"}
+		}
+		return initializeImplementation(impl)
 	}
+
+	// Auto-detect: sort by priority (descending) and return first available
+	impls := Implementations()
+	sort.Slice(impls, func(i, j int) bool {
+		return impls[i].Priority() > impls[j].Priority()
+	})
+
+	var details []string
+	for _, impl := range impls {
+		if impl.Available() {
+			return initializeImplementation(impl)
+		}
+		details = append(details, impl.Name()+" (not available)")
+	}
+
+	return nil, &ErrNoImplementationAvailable{Details: details}
+}
+
+// initializeImplementation initializes and returns a Podman implementation.
+// For CLI implementation, this ensures the binary path is resolved.
+func initializeImplementation(impl Implementation) (Podman, error) {
+	// For CLI implementation, we need to initialize the file path
+	if cliImpl, ok := impl.(*podmanCli); ok {
+		return newPodmanCli(cliImpl)
+	}
+	// For other implementations (future: api), return as-is
+	return impl, nil
 }
 
 // ErrUnknownImplementation is returned when an invalid implementation is specified.
