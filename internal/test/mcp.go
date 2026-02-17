@@ -356,6 +356,7 @@ func (s *McpSuite) WithImagePull(imageID string) {
 		w.Header().Set("Content-Type", "application/json")
 		WriteJSON(w, ImagePullResponse{
 			ID:     imageID,
+			Images: []string{imageID},
 			Status: "Download complete",
 		})
 	}
@@ -405,6 +406,7 @@ func (s *McpSuite) WithContainerRun(containerID string) {
 	pullHandler := func(w http.ResponseWriter, _ *http.Request) {
 		WriteJSON(w, ImagePullResponse{
 			ID:     "sha256:abc123def456",
+			Images: []string{"sha256:abc123def456"},
 			Status: "Already exists",
 		})
 	}
@@ -442,15 +444,14 @@ func (s *McpSuite) WithContainerRun(containerID string) {
 
 // WithImageBuild sets up the mock server to handle image builds.
 // Returns a successful build response.
+// Note: The imageID must be a valid hex string of at least 12 characters
+// (e.g., "a1b2c3d4e5f6") because the API binding's processBuildResponse
+// requires a stream line matching ^[0-9a-f]{12} to capture the image ID.
 func (s *McpSuite) WithImageBuild(imageID string) {
 	buildHandler := func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		// Return streaming build output in NDJSON format
-		// Note: Use \\n for escaped newline in JSON, \n for line separator
-		_, _ = w.Write([]byte(`{"stream":"Step 1/1 : FROM alpine\\n"}` + "\n"))
-		_, _ = w.Write([]byte(`{"stream":"Successfully built ` + imageID + `\\n"}` + "\n"))
-		// Write ID in format podman expects
-		_, _ = w.Write([]byte(`{"stream":"` + imageID + `\\n"}` + "\n"))
+		_, _ = w.Write([]byte(`{"stream":"STEP 1/1: FROM alpine\n"}` + "\n"))
+		_, _ = w.Write([]byte(`{"stream":"` + imageID + `\n"}` + "\n"))
 	}
 	s.MockServer.Handle("POST", "/libpod/build", buildHandler)
 	s.MockServer.Handle("POST", "/build", buildHandler)

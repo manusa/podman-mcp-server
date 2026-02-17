@@ -5,6 +5,7 @@ go 1.25.0
 toolchain go1.25.1
 
 require (
+	github.com/containers/buildah v1.43.0
 	github.com/containers/podman/v5 v5.8.0
 	github.com/mark3labs/mcp-go v0.43.2
 	github.com/modelcontextprotocol/go-sdk v1.3.0
@@ -31,7 +32,6 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v1.0.0-rc.1 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.17.0 // indirect
-	github.com/containers/buildah v1.43.0 // indirect
 	github.com/containers/libtrust v0.0.0-20230121012942-c1716e8a8d01 // indirect
 	github.com/containers/ocicrypt v1.2.1 // indirect
 	github.com/containers/psgo v1.9.1-0.20250826150930-4ae76f200c86 // indirect

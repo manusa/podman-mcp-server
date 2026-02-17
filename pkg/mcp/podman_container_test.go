@@ -19,23 +19,18 @@ type ContainerSuite struct {
 	test.McpSuite
 }
 
-// TestContainerReadOnlySuiteWithAllImplementations runs read-only container tests with all implementations.
-func TestContainerReadOnlySuiteWithAllImplementations(t *testing.T) {
+// TestContainerSuiteWithAllImplementations runs container tests with all implementations.
+func TestContainerSuiteWithAllImplementations(t *testing.T) {
 	for _, impl := range test.AvailableImplementations() {
 		t.Run(impl, func(t *testing.T) {
-			suite.Run(t, &ContainerReadOnlySuite{
+			suite.Run(t, &ContainerSuite{
 				McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
 			})
 		})
 	}
 }
 
-// ContainerReadOnlySuite tests read-only container operations (list, inspect, logs).
-type ContainerReadOnlySuite struct {
-	test.McpSuite
-}
-
-func (s *ContainerReadOnlySuite) TestContainerList() {
+func (s *ContainerSuite) TestContainerList() {
 	s.WithContainerList([]test.ContainerListResponse{
 		{
 			ID:        "abc123def456",
@@ -88,7 +83,7 @@ func (s *ContainerReadOnlySuite) TestContainerList() {
 	})
 }
 
-func (s *ContainerReadOnlySuite) TestContainerListEmpty() {
+func (s *ContainerSuite) TestContainerListEmpty() {
 	s.WithContainerList([]test.ContainerListResponse{})
 
 	toolResult, err := s.CallTool("container_list", map[string]interface{}{})
@@ -104,7 +99,7 @@ func (s *ContainerReadOnlySuite) TestContainerListEmpty() {
 	})
 }
 
-func (s *ContainerReadOnlySuite) TestContainerInspect() {
+func (s *ContainerSuite) TestContainerInspect() {
 	s.Run("container_inspect(name=nil) returns error", func() {
 		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{})
 		s.NoError(err)
@@ -175,84 +170,6 @@ func (s *ContainerReadOnlySuite) TestContainerInspect() {
 
 		s.Run("mock server received inspect request", func() {
 			s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/json"))
-		})
-	})
-}
-
-// TestContainerWriteSuite runs write container tests and logs tests with CLI implementation only.
-// Write operations (run, stop, remove) and logs are not yet implemented in the API,
-// or require streaming support that the mock server doesn't provide.
-//
-// TODO: Merge this suite into TestContainerReadOnlySuiteWithAllImplementations once
-// Phase 3 (write operations) of the API implementation is complete and the mock server
-// supports streaming logs. See docs/specs/podman-rest-api-bindings.md for implementation phases.
-func TestContainerWriteSuite(t *testing.T) {
-	suite.Run(t, &ContainerSuite{
-		McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
-	})
-}
-
-func (s *ContainerSuite) TestContainerLogs() {
-	s.Run("container_logs(name=nil) returns error", func() {
-		toolResult, err := s.CallTool("container_logs", map[string]interface{}{})
-		s.NoError(err)
-		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.Contains(text, "name", "error should mention the missing parameter")
-		s.Contains(text, "required", "error should indicate parameter is required")
-	})
-
-	s.Run("container_logs(name=nonexistent) returns not found error", func() {
-		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
-			404, "no such container: nonexistent")
-
-		toolResult, err := s.CallTool("container_logs", map[string]interface{}{
-			"name": "nonexistent",
-		})
-		s.NoError(err)
-		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
-		s.NotEmpty(text, "error message should not be empty")
-	})
-
-	s.Run("container_logs(name=test-container) returns logs", func() {
-		s.WithContainerInspect(test.ContainerInspectResponse{
-			ID:        "abc123def456",
-			Name:      "/test-container",
-			Image:     "sha256:abc123",
-			ImageName: "docker.io/library/nginx:latest",
-			Created:   "2024-01-01T00:00:00Z",
-			State: &test.ContainerState{
-				Status:    "running",
-				Running:   true,
-				StartedAt: "2024-01-01T00:00:00Z",
-			},
-		})
-		expectedLogs := "2024-01-01T00:00:00Z Starting nginx...\n2024-01-01T00:00:01Z nginx started successfully\n"
-		s.WithContainerLogs(expectedLogs)
-
-		toolResult, err := s.CallTool("container_logs", map[string]interface{}{
-			"name": "test-container",
-		})
-
-		s.Run("returns OK", func() {
-			s.NoError(err)
-			s.False(toolResult.IsError)
-		})
-
-		s.Run("returns log content with expected format", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
-			s.Contains(text, "Starting nginx", "should contain first log line")
-			s.Contains(text, "nginx started successfully", "should contain second log line")
-			s.Less(
-				strings.Index(text, "Starting nginx"),
-				strings.Index(text, "nginx started successfully"),
-				"log lines should appear in chronological order",
-			)
-		})
-
-		s.Run("mock server received logs request", func() {
-			s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/logs"))
 		})
 	})
 }
@@ -435,6 +352,7 @@ func (s *ContainerSuite) TestContainerRun() {
 			if strings.HasPrefix(reference, "docker.io/") {
 				test.WriteJSON(w, test.ImagePullResponse{
 					ID:     "sha256:abc123def456",
+					Images: []string{"sha256:abc123def456"},
 					Status: "Already exists",
 				})
 				return
@@ -554,6 +472,84 @@ func (s *ContainerSuite) TestContainerRun() {
 			s.Require().NotNil(req, "create request should be captured")
 			s.Contains(req.Body, `"KEY":"VALUE"`, "should have KEY=VALUE env var")
 			s.Contains(req.Body, `"FOO":"BAR"`, "should have FOO=BAR env var")
+		})
+	})
+}
+
+// ContainerLogsSuite tests container logs using CLI implementation only.
+// The API binding's streaming Logs() function requires the server to close the
+// connection to signal EOF, which the mock HTTP server cannot do properly.
+type ContainerLogsSuite struct {
+	test.McpSuite
+}
+
+func TestContainerLogsSuite(t *testing.T) {
+	suite.Run(t, &ContainerLogsSuite{
+		McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
+	})
+}
+
+func (s *ContainerLogsSuite) TestContainerLogs() {
+	s.Run("container_logs(name=nil) returns error", func() {
+		toolResult, err := s.CallTool("container_logs", map[string]interface{}{})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.Contains(text, "name", "error should mention the missing parameter")
+		s.Contains(text, "required", "error should indicate parameter is required")
+	})
+
+	s.Run("container_logs(name=nonexistent) returns not found error", func() {
+		s.WithError("GET", "/libpod/containers/{id}/json", "/containers/{id}/json",
+			404, "no such container: nonexistent")
+
+		toolResult, err := s.CallTool("container_logs", map[string]interface{}{
+			"name": "nonexistent",
+		})
+		s.NoError(err)
+		s.True(toolResult.IsError, "tool result should indicate an error")
+		text := toolResult.Content[0].(mcp.TextContent).Text
+		s.NotEmpty(text, "error message should not be empty")
+	})
+
+	s.Run("container_logs(name=test-container) returns logs", func() {
+		s.WithContainerInspect(test.ContainerInspectResponse{
+			ID:        "abc123def456",
+			Name:      "/test-container",
+			Image:     "sha256:abc123",
+			ImageName: "docker.io/library/nginx:latest",
+			Created:   "2024-01-01T00:00:00Z",
+			State: &test.ContainerState{
+				Status:    "running",
+				Running:   true,
+				StartedAt: "2024-01-01T00:00:00Z",
+			},
+		})
+		expectedLogs := "2024-01-01T00:00:00Z Starting nginx...\n2024-01-01T00:00:01Z nginx started successfully\n"
+		s.WithContainerLogs(expectedLogs)
+
+		toolResult, err := s.CallTool("container_logs", map[string]interface{}{
+			"name": "test-container",
+		})
+
+		s.Run("returns OK", func() {
+			s.NoError(err)
+			s.False(toolResult.IsError)
+		})
+
+		s.Run("returns log content with expected format", func() {
+			text := toolResult.Content[0].(mcp.TextContent).Text
+			s.Contains(text, "Starting nginx", "should contain first log line")
+			s.Contains(text, "nginx started successfully", "should contain second log line")
+			s.Less(
+				strings.Index(text, "Starting nginx"),
+				strings.Index(text, "nginx started successfully"),
+				"log lines should appear in chronological order",
+			)
+		})
+
+		s.Run("mock server received logs request", func() {
+			s.True(s.MockServer.HasRequest("GET", "/libpod/containers/{id}/logs"))
 		})
 	})
 }

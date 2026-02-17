@@ -213,18 +213,14 @@ require github.com/containers/podman/v5 v5.x.x
 
 ### Current State
 
-**Phase: 2 (Socket Detection and API Implementation - Read-Only) - Complete**
+**Phase: 3 (Write Operations) - Complete**
 
-Socket detection and read-only API implementation are now in place:
-- `pkg/podman/socket.go` with `DetectSocket()` and `PingSocket()` functions
-- Unit tests in `pkg/podman/socket_test.go`
-- `github.com/containers/podman/v5` dependency added
-- `pkg/podman/podman_api.go` with `podmanApi` struct implementing `Implementation`
-- Read-only methods implemented: `ContainerList()`, `ContainerInspect()`, `ContainerLogs()`, `ImageList()`, `NetworkList()`, `VolumeList()`
-- API registered via `init()` with priority 100 (higher than CLI's 50)
-- Write operations return "not yet implemented" error (Phase 3)
-- Test infrastructure updated to default to CLI for mock server compatibility
-- All tests pass
+All 13 `Podman` interface methods are now implemented via the API backend:
+- Read-only methods: `ContainerList()`, `ContainerInspect()`, `ContainerLogs()`, `ImageList()`, `NetworkList()`, `VolumeList()`
+- Write methods: `ContainerStop()`, `ContainerRemove()`, `ContainerRun()`, `ImagePull()`, `ImagePush()`, `ImageRemove()`, `ImageBuild()`
+- Short-name image resolution with docker.io/ prefix fallback (shared `pullImageWithShortNameRetry` helper)
+- All MCP tool tests run against both CLI and API implementations
+- Test infrastructure updated with API-compatible mock handlers
 
 ### Phase 0: Test Infrastructure Enhancement ✓
 
@@ -297,19 +293,23 @@ Socket detection and read-only API implementation are now in place:
 
 **Deliverable:** Read-only operations work via API when socket available.
 
-### Phase 3: API Implementation (Write Operations)
+### Phase 3: API Implementation (Write Operations) ✓
 
 **Goal:** Implement mutating operations.
 
 **Spec:** This spec (Podman REST API Bindings)
 
-1. Add remaining methods to `podmanApi`:
+**Status: COMPLETE**
+
+1. ✓ Added remaining methods to `podmanApi`:
    - `ContainerRun(...)`, `ContainerStop()`, `ContainerRemove()`
    - `ImagePull()`, `ImagePush()`, `ImageRemove()`, `ImageBuild()`
 
-2. Handle short-name image resolution (docker.io prefix fallback)
+2. ✓ Handled short-name image resolution (docker.io prefix fallback via `pullImageWithShortNameRetry`)
 
-3. Add/update integration tests for write operations
+3. ✓ Merged write test suites into all-implementations runners (CLI + API)
+
+4. ✓ Updated mock handlers for API binding compatibility (`Images` field, hex build IDs)
 
 **Deliverable:** Full API implementation complete.
 

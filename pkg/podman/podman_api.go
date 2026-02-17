@@ -7,17 +7,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"text/tabwriter"
 	"time"
 
+	buildahDefine "github.com/containers/buildah/define"
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
 	"github.com/containers/podman/v5/pkg/bindings/images"
 	"github.com/containers/podman/v5/pkg/bindings/network"
 	"github.com/containers/podman/v5/pkg/bindings/volumes"
 	entitiesTypes "github.com/containers/podman/v5/pkg/domain/entities/types"
+	"github.com/containers/podman/v5/pkg/specgen"
 	netTypes "go.podman.io/common/libnetwork/types"
 
 	"github.com/manusa/podman-mcp-server/pkg/config"
@@ -186,31 +189,95 @@ func (p *podmanApi) ContainerLogs(name string) (string, error) {
 }
 
 // ContainerRemove removes a container.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ContainerRemove(_ string) (string, error) {
-	return "", fmt.Errorf("ContainerRemove not yet implemented for API implementation")
+func (p *podmanApi) ContainerRemove(name string) (string, error) {
+	reports, err := containers.Remove(p.ctx, name, nil)
+	if err != nil {
+		return "", err
+	}
+	for _, r := range reports {
+		if r.Err != nil {
+			return "", r.Err
+		}
+	}
+	return name, nil
 }
 
 // ContainerRun runs a new container from an image.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ContainerRun(_ string, _ map[int]int, _ []string) (string, error) {
-	return "", fmt.Errorf("ContainerRun not yet implemented for API implementation")
+func (p *podmanApi) ContainerRun(imageName string, portMappings map[int]int, envVariables []string) (string, error) {
+	// Try to pull image first (mirrors CLI behavior)
+	_, _ = p.pullImageWithShortNameRetry(imageName)
+
+	s := specgen.NewSpecGenerator(imageName, false)
+	s.Remove = boolPtr(true) // --rm
+
+	// Port mappings
+	if len(portMappings) > 0 {
+		for hostPort, containerPort := range portMappings {
+			s.PortMappings = append(s.PortMappings, netTypes.PortMapping{
+				HostPort:      uint16(hostPort),
+				ContainerPort: uint16(containerPort),
+				Protocol:      "tcp",
+			})
+		}
+	} else {
+		s.PublishExposedPorts = boolPtr(true) // --publish-all
+	}
+
+	// Environment variables (key=value format → map)
+	if len(envVariables) > 0 {
+		s.Env = make(map[string]string)
+		for _, env := range envVariables {
+			parts := strings.SplitN(env, "=", 2)
+			if len(parts) == 2 {
+				s.Env[parts[0]] = parts[1]
+			}
+		}
+	}
+
+	createResponse, err := containers.CreateWithSpec(p.ctx, s, nil)
+	if err != nil {
+		// Short-name retry: if creation fails, try with docker.io/ prefix
+		if !strings.Contains(imageName, "/") || strings.Contains(err.Error(), "short-name") {
+			s.Image = "docker.io/" + imageName
+			createResponse, err = containers.CreateWithSpec(p.ctx, s, nil)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	}
+
+	// Start the container
+	if err := containers.Start(p.ctx, createResponse.ID, nil); err != nil {
+		return "", err
+	}
+	return createResponse.ID, nil
 }
 
 // ContainerStop stops a running container.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ContainerStop(_ string) (string, error) {
-	return "", fmt.Errorf("ContainerStop not yet implemented for API implementation")
+func (p *podmanApi) ContainerStop(name string) (string, error) {
+	if err := containers.Stop(p.ctx, name, nil); err != nil {
+		return "", err
+	}
+	return name, nil
 }
 
 // ImageBuild builds an image from a Containerfile.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ImageBuild(_ string, _ string) (string, error) {
-	return "", fmt.Errorf("ImageBuild not yet implemented for API implementation")
+func (p *podmanApi) ImageBuild(containerFile string, imageName string) (string, error) {
+	contextDir := filepath.Dir(containerFile)
+	opts := entitiesTypes.BuildOptions{
+		BuildOptions: buildahDefine.BuildOptions{
+			ContextDirectory: contextDir,
+			Output:           imageName,
+			CommonBuildOpts:  &buildahDefine.CommonBuildOptions{},
+		},
+	}
+	report, err := images.Build(p.ctx, []string{containerFile}, opts)
+	if err != nil {
+		return "", err
+	}
+	return report.ID, nil
 }
 
 // ImageList lists all images on the system.
@@ -230,24 +297,48 @@ func (p *podmanApi) ImageList() (string, error) {
 }
 
 // ImagePull pulls an image from a registry.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ImagePull(_ string) (string, error) {
-	return "", fmt.Errorf("ImagePull not yet implemented for API implementation")
+func (p *podmanApi) ImagePull(imageName string) (string, error) {
+	quiet := true
+	opts := &images.PullOptions{Quiet: &quiet}
+	pulledImages, err := images.Pull(p.ctx, imageName, opts)
+	if err != nil {
+		if strings.Contains(err.Error(), "short-name") {
+			imageName = "docker.io/" + imageName
+			pulledImages, err = images.Pull(p.ctx, imageName, opts)
+			if err != nil {
+				return "", err
+			}
+		} else {
+			return "", err
+		}
+	}
+	result := strings.Join(pulledImages, "\n")
+	if result != "" {
+		result += "\n"
+	}
+	return result + imageName + " pulled successfully", nil
 }
 
 // ImagePush pushes an image to a registry.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ImagePush(_ string) (string, error) {
-	return "", fmt.Errorf("ImagePush not yet implemented for API implementation")
+func (p *podmanApi) ImagePush(imageName string) (string, error) {
+	quiet := true
+	opts := &images.PushOptions{Quiet: &quiet}
+	if err := images.Push(p.ctx, imageName, imageName, opts); err != nil {
+		return "", err
+	}
+	return imageName + " pushed successfully", nil
 }
 
 // ImageRemove removes an image from the system.
-// Note: This is a write operation but included as stub for interface compliance.
-// Full implementation will be added in Phase 3.
-func (p *podmanApi) ImageRemove(_ string) (string, error) {
-	return "", fmt.Errorf("ImageRemove not yet implemented for API implementation")
+func (p *podmanApi) ImageRemove(imageName string) (string, error) {
+	report, errs := images.Remove(p.ctx, []string{imageName}, nil)
+	if len(errs) > 0 {
+		return "", errs[0]
+	}
+	if report != nil {
+		return strings.Join(report.Deleted, "\n"), nil
+	}
+	return "", nil
 }
 
 // NetworkList lists all networks on the system.
@@ -442,6 +533,25 @@ func formatPorts(ports []netTypes.PortMapping) string {
 		}
 	}
 	return strings.Join(parts, ", ")
+}
+
+// pullImageWithShortNameRetry pulls an image, retrying with docker.io/ prefix on short-name errors.
+func (p *podmanApi) pullImageWithShortNameRetry(imageName string) ([]string, error) {
+	quiet := true
+	opts := &images.PullOptions{Quiet: &quiet}
+	pulledImages, err := images.Pull(p.ctx, imageName, opts)
+	if err == nil {
+		return pulledImages, nil
+	}
+	if strings.Contains(err.Error(), "short-name") {
+		return images.Pull(p.ctx, "docker.io/"+imageName, opts)
+	}
+	return nil, err
+}
+
+// boolPtr returns a pointer to the given bool value.
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 // Ensure interface compliance at compile time.
