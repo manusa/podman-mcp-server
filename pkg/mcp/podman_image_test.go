@@ -20,23 +20,18 @@ type ImageSuite struct {
 	containerFile string
 }
 
-// TestImageReadOnlySuiteWithAllImplementations runs read-only image tests with all implementations.
-func TestImageReadOnlySuiteWithAllImplementations(t *testing.T) {
+// TestImageSuiteWithAllImplementations runs image tests with all implementations.
+func TestImageSuiteWithAllImplementations(t *testing.T) {
 	for _, impl := range test.AvailableImplementations() {
 		t.Run(impl, func(t *testing.T) {
-			suite.Run(t, &ImageReadOnlySuite{
+			suite.Run(t, &ImageSuite{
 				McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
 			})
 		})
 	}
 }
 
-// ImageReadOnlySuite tests read-only image operations (list).
-type ImageReadOnlySuite struct {
-	test.McpSuite
-}
-
-func (s *ImageReadOnlySuite) TestImageList() {
+func (s *ImageSuite) TestImageList() {
 	s.WithImageList([]test.ImageListResponse{
 		{
 			ID:          "sha256:abc123def456",
@@ -79,7 +74,7 @@ func (s *ImageReadOnlySuite) TestImageList() {
 	})
 }
 
-func (s *ImageReadOnlySuite) TestImageListEmpty() {
+func (s *ImageSuite) TestImageListEmpty() {
 	s.WithImageList([]test.ImageListResponse{})
 
 	toolResult, err := s.CallTool("image_list", map[string]interface{}{})
@@ -94,18 +89,6 @@ func (s *ImageReadOnlySuite) TestImageListEmpty() {
 		// Some podman versions print headers even when empty, others don't
 		// Just verify no image data is present
 		s.NotContains(text, "nginx", "should not contain image data")
-	})
-}
-
-// TestImageWriteSuite runs write image tests with CLI implementation only.
-// Write operations (pull, push, remove, build) are not yet implemented in the API.
-//
-// TODO: Merge this suite into TestImageReadOnlySuiteWithAllImplementations once
-// Phase 3 (write operations) of the API implementation is complete.
-// See docs/specs/podman-rest-api-bindings.md for implementation phases.
-func TestImageWriteSuite(t *testing.T) {
-	suite.Run(t, &ImageSuite{
-		McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
 	})
 }
 
@@ -146,6 +129,7 @@ func (s *ImageSuite) TestImagePull() {
 				w.Header().Set("Content-Type", "application/json")
 				test.WriteJSON(w, test.ImagePullResponse{
 					ID:     "sha256:shortname123",
+					Images: []string{"sha256:shortname123"},
 					Status: "Download complete",
 				})
 				return
@@ -325,7 +309,7 @@ func (s *ImageSuite) TestImageBuild() {
 	})
 
 	s.Run("image_build(containerFile=valid) builds image", func() {
-		s.WithImageBuild("sha256:built123")
+		s.WithImageBuild("a1b2c3d4e5f6")
 
 		_, _ = s.CallTool("image_build", map[string]interface{}{
 			"containerFile": s.containerFile,
@@ -346,7 +330,7 @@ func (s *ImageSuite) TestImageBuild() {
 	})
 
 	s.Run("image_build(imageName=example.com/org/image:tag) includes tag parameter", func() {
-		s.WithImageBuild("sha256:tagged123")
+		s.WithImageBuild("b2c3d4e5f6a7")
 
 		_, _ = s.CallTool("image_build", map[string]interface{}{
 			"containerFile": s.containerFile,
