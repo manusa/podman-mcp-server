@@ -7,13 +7,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
+	"text/tabwriter"
+	"time"
 
 	"github.com/containers/podman/v5/pkg/bindings"
 	"github.com/containers/podman/v5/pkg/bindings/containers"
 	"github.com/containers/podman/v5/pkg/bindings/images"
 	"github.com/containers/podman/v5/pkg/bindings/network"
 	"github.com/containers/podman/v5/pkg/bindings/volumes"
+	entitiesTypes "github.com/containers/podman/v5/pkg/domain/entities/types"
+	netTypes "go.podman.io/common/libnetwork/types"
 
 	"github.com/manusa/podman-mcp-server/pkg/config"
 )
@@ -25,9 +30,10 @@ func init() {
 // podmanApi implements the Podman interface using the Podman REST API
 // via pkg/bindings.
 type podmanApi struct {
-	ctx      context.Context // Context with connection info
-	initOnce sync.Once
-	initErr  error
+	ctx          context.Context // Context with connection info
+	outputFormat string
+	initOnce     sync.Once
+	initErr      error
 }
 
 // Name returns the unique identifier for this implementation.
@@ -57,8 +63,10 @@ func (p *podmanApi) Priority() int {
 }
 
 // Initialize creates and initializes a new podmanApi instance.
-func (p *podmanApi) Initialize(_ config.Config) (Podman, error) {
-	instance := &podmanApi{}
+func (p *podmanApi) Initialize(cfg config.Config) (Podman, error) {
+	instance := &podmanApi{
+		outputFormat: cfg.OutputFormat,
+	}
 	if err := instance.ensureConnection(); err != nil {
 		return nil, err
 	}
@@ -101,7 +109,10 @@ func (p *podmanApi) ContainerList() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return toJSON(data)
+	if p.outputFormat == config.OutputFormatJSON {
+		return toJSON(data)
+	}
+	return formatContainerList(data), nil
 }
 
 // ContainerLogs returns the logs of a container.
@@ -116,10 +127,15 @@ func (p *podmanApi) ContainerLogs(name string) (string, error) {
 	stdoutChan := make(chan string)
 	stderrChan := make(chan string)
 
-	// Collect logs in goroutine
+	// Create a context with timeout to prevent hanging
+	ctx, cancel := context.WithTimeout(p.ctx, 30*time.Second)
+	defer cancel()
+
+	// Collect logs in goroutine.
 	var stdoutBuf, stderrBuf bytes.Buffer
 	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for {
 			select {
 			case line, ok := <-stdoutChan:
@@ -134,21 +150,28 @@ func (p *podmanApi) ContainerLogs(name string) (string, error) {
 				} else {
 					stderrBuf.WriteString(line)
 				}
+			case <-ctx.Done():
+				return
 			}
 			if stdoutChan == nil && stderrChan == nil {
-				close(done)
 				return
 			}
 		}
 	}()
 
-	err := containers.Logs(p.ctx, name, opts, stdoutChan, stderrChan)
-	if err != nil {
-		return "", err
+	// containers.Logs should close both channels when done
+	err := containers.Logs(ctx, name, opts, stdoutChan, stderrChan)
+
+	// Wait for collection to finish or context to be cancelled
+	select {
+	case <-done:
+	case <-ctx.Done():
+		return "", fmt.Errorf("timeout waiting for container logs")
 	}
 
-	// Wait for collection to finish
-	<-done
+	if err != nil {
+		return "", fmt.Errorf("failed to get container logs: %w", err)
+	}
 
 	// Combine stdout and stderr
 	result := stdoutBuf.String()
@@ -200,7 +223,10 @@ func (p *podmanApi) ImageList() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return toJSON(data)
+	if p.outputFormat == config.OutputFormatJSON {
+		return toJSON(data)
+	}
+	return formatImageList(data), nil
 }
 
 // ImagePull pulls an image from a registry.
@@ -230,7 +256,10 @@ func (p *podmanApi) NetworkList() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return toJSON(data)
+	if p.outputFormat == config.OutputFormatJSON {
+		return toJSON(data)
+	}
+	return formatNetworkList(data), nil
 }
 
 // VolumeList lists all volumes on the system.
@@ -239,7 +268,10 @@ func (p *podmanApi) VolumeList() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return toJSON(data)
+	if p.outputFormat == config.OutputFormatJSON {
+		return toJSON(data)
+	}
+	return formatVolumeList(data), nil
 }
 
 // toJSON converts a value to an indented JSON string.
@@ -249,6 +281,167 @@ func toJSON(v any) (string, error) {
 		return "", err
 	}
 	return string(data), nil
+}
+
+// formatContainerList formats container list data as a text table.
+func formatContainerList(data []entitiesTypes.ListContainer) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "CONTAINER ID\tIMAGE\tCOMMAND\tCREATED\tSTATUS\tPORTS\tNAMES")
+	for _, c := range data {
+		id := c.ID
+		if len(id) > 12 {
+			id = id[:12]
+		}
+		command := ""
+		if len(c.Command) > 0 {
+			command = strings.Join(c.Command, " ")
+			if len(command) > 20 {
+				command = command[:20] + "..."
+			}
+		}
+		created := formatTimeAgo(c.Created)
+		status := c.Status
+		if status == "" {
+			status = c.State
+		}
+		ports := formatPorts(c.Ports)
+		names := strings.Join(c.Names, ",")
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			id, c.Image, command, created, status, ports, names)
+	}
+	_ = w.Flush()
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+// formatImageList formats image list data as a text table.
+func formatImageList(data []*entitiesTypes.ImageSummary) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "REPOSITORY\tTAG\tDIGEST\tIMAGE ID\tCREATED\tSIZE")
+	for _, img := range data {
+		repo := "<none>"
+		tag := "<none>"
+		if len(img.RepoTags) > 0 {
+			parts := strings.Split(img.RepoTags[0], ":")
+			if len(parts) >= 2 {
+				repo = strings.Join(parts[:len(parts)-1], ":")
+				tag = parts[len(parts)-1]
+			} else {
+				repo = img.RepoTags[0]
+			}
+		} else if len(img.Names) > 0 {
+			parts := strings.Split(img.Names[0], ":")
+			if len(parts) >= 2 {
+				repo = strings.Join(parts[:len(parts)-1], ":")
+				tag = parts[len(parts)-1]
+			} else {
+				repo = img.Names[0]
+			}
+		}
+		id := strings.TrimPrefix(img.ID, "sha256:")
+		if len(id) > 12 {
+			id = id[:12]
+		}
+		digest := img.Digest
+		if len(digest) > 19 {
+			digest = digest[:19]
+		}
+		if digest == "" {
+			digest = "<none>"
+		}
+		created := formatTimeAgo(time.Unix(img.Created, 0))
+		size := formatSize(img.Size)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			repo, tag, digest, id, created, size)
+	}
+	_ = w.Flush()
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+// formatNetworkList formats network list data as a text table.
+func formatNetworkList(data []netTypes.Network) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "NETWORK ID\tNAME\tDRIVER")
+	for _, n := range data {
+		id := n.ID
+		if len(id) > 12 {
+			id = id[:12]
+		}
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", id, n.Name, n.Driver)
+	}
+	_ = w.Flush()
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+// formatVolumeList formats volume list data as a text table.
+func formatVolumeList(data []*entitiesTypes.VolumeListReport) string {
+	var buf bytes.Buffer
+	w := tabwriter.NewWriter(&buf, 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "DRIVER\tVOLUME NAME")
+	for _, v := range data {
+		_, _ = fmt.Fprintf(w, "%s\t%s\n", v.Driver, v.Name)
+	}
+	_ = w.Flush()
+	return strings.TrimSuffix(buf.String(), "\n")
+}
+
+// formatTimeAgo formats a time as a human-readable "X ago" string.
+func formatTimeAgo(t time.Time) string {
+	if t.IsZero() {
+		return "N/A"
+	}
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return fmt.Sprintf("%d seconds ago", int(d.Seconds()))
+	case d < time.Hour:
+		return fmt.Sprintf("%d minutes ago", int(d.Minutes()))
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%d hours ago", int(d.Hours()))
+	case d < 30*24*time.Hour:
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+	case d < 365*24*time.Hour:
+		return fmt.Sprintf("%d months ago", int(d.Hours()/(24*30)))
+	default:
+		return fmt.Sprintf("%d years ago", int(d.Hours()/(24*365)))
+	}
+}
+
+// formatSize formats a size in bytes as a human-readable string.
+func formatSize(size int64) string {
+	const (
+		KB = 1000
+		MB = 1000 * KB
+		GB = 1000 * MB
+	)
+	switch {
+	case size >= GB:
+		return fmt.Sprintf("%.1f GB", float64(size)/float64(GB))
+	case size >= MB:
+		return fmt.Sprintf("%.1f MB", float64(size)/float64(MB))
+	case size >= KB:
+		return fmt.Sprintf("%.1f KB", float64(size)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", size)
+	}
+}
+
+// formatPorts formats port mappings as a string.
+func formatPorts(ports []netTypes.PortMapping) string {
+	if len(ports) == 0 {
+		return ""
+	}
+	var parts []string
+	for _, p := range ports {
+		if p.HostPort > 0 {
+			parts = append(parts, fmt.Sprintf("%d->%d/%s", p.HostPort, p.ContainerPort, p.Protocol))
+		} else {
+			parts = append(parts, fmt.Sprintf("%d/%s", p.ContainerPort, p.Protocol))
+		}
+	}
+	return strings.Join(parts, ", ")
 }
 
 // Ensure interface compliance at compile time.

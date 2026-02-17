@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 // ContainerSuite tests container tools using the mock Podman API server.
@@ -18,11 +19,23 @@ type ContainerSuite struct {
 	test.McpSuite
 }
 
-func TestContainerSuite(t *testing.T) {
-	suite.Run(t, new(ContainerSuite))
+// TestContainerReadOnlySuiteWithAllImplementations runs read-only container tests with all implementations.
+func TestContainerReadOnlySuiteWithAllImplementations(t *testing.T) {
+	for _, impl := range test.AvailableImplementations() {
+		t.Run(impl, func(t *testing.T) {
+			suite.Run(t, &ContainerReadOnlySuite{
+				McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
+			})
+		})
+	}
 }
 
-func (s *ContainerSuite) TestContainerList() {
+// ContainerReadOnlySuite tests read-only container operations (list, inspect, logs).
+type ContainerReadOnlySuite struct {
+	test.McpSuite
+}
+
+func (s *ContainerReadOnlySuite) TestContainerList() {
 	s.WithContainerList([]test.ContainerListResponse{
 		{
 			ID:        "abc123def456",
@@ -31,7 +44,7 @@ func (s *ContainerSuite) TestContainerList() {
 			ImageID:   "sha256:abc123",
 			State:     "running",
 			Status:    "Up 2 hours",
-			Created:   "2024-01-01T00:00:00Z", // RFC3339 time string for libpod
+			Created:   "2024-01-01T00:00:00Z",
 			Command:   []string{"/bin/sh"},
 			StartedAt: 1704067200,
 		},
@@ -75,7 +88,7 @@ func (s *ContainerSuite) TestContainerList() {
 	})
 }
 
-func (s *ContainerSuite) TestContainerListEmpty() {
+func (s *ContainerReadOnlySuite) TestContainerListEmpty() {
 	s.WithContainerList([]test.ContainerListResponse{})
 
 	toolResult, err := s.CallTool("container_list", map[string]interface{}{})
@@ -87,13 +100,11 @@ func (s *ContainerSuite) TestContainerListEmpty() {
 
 	s.Run("returns empty or headers-only output", func() {
 		text := toolResult.Content[0].(mcp.TextContent).Text
-		// Some podman versions print headers even when empty, others don't
-		// Just verify no container data is present
 		s.NotContains(text, "test-container", "should not contain container data")
 	})
 }
 
-func (s *ContainerSuite) TestContainerInspect() {
+func (s *ContainerReadOnlySuite) TestContainerInspect() {
 	s.Run("container_inspect(name=nil) returns error", func() {
 		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{})
 		s.NoError(err)
@@ -105,7 +116,7 @@ func (s *ContainerSuite) TestContainerInspect() {
 
 	s.Run("container_inspect(name=123) returns error for non-string parameter", func() {
 		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{
-			"name": 123, // Pass an integer instead of a string
+			"name": 123,
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
@@ -168,6 +179,19 @@ func (s *ContainerSuite) TestContainerInspect() {
 	})
 }
 
+// TestContainerWriteSuite runs write container tests and logs tests with CLI implementation only.
+// Write operations (run, stop, remove) and logs are not yet implemented in the API,
+// or require streaming support that the mock server doesn't provide.
+//
+// TODO: Merge this suite into TestContainerReadOnlySuiteWithAllImplementations once
+// Phase 3 (write operations) of the API implementation is complete and the mock server
+// supports streaming logs. See docs/specs/podman-rest-api-bindings.md for implementation phases.
+func TestContainerWriteSuite(t *testing.T) {
+	suite.Run(t, &ContainerSuite{
+		McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
+	})
+}
+
 func (s *ContainerSuite) TestContainerLogs() {
 	s.Run("container_logs(name=nil) returns error", func() {
 		toolResult, err := s.CallTool("container_logs", map[string]interface{}{})
@@ -192,7 +216,6 @@ func (s *ContainerSuite) TestContainerLogs() {
 	})
 
 	s.Run("container_logs(name=test-container) returns logs", func() {
-		// Podman CLI first inspects the container before fetching logs
 		s.WithContainerInspect(test.ContainerInspectResponse{
 			ID:        "abc123def456",
 			Name:      "/test-container",

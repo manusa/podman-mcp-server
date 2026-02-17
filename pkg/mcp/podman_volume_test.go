@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 // VolumeSuite tests volume tools using the mock Podman API server.
@@ -16,8 +17,14 @@ type VolumeSuite struct {
 	test.McpSuite
 }
 
-func TestVolumeSuite(t *testing.T) {
-	suite.Run(t, new(VolumeSuite))
+func TestVolumeSuiteWithAllImplementations(t *testing.T) {
+	for _, impl := range test.AvailableImplementations() {
+		t.Run(impl, func(t *testing.T) {
+			suite.Run(t, &VolumeSuite{
+				McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
+			})
+		})
+	}
 }
 
 func (s *VolumeSuite) TestVolumeList() {

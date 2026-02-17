@@ -122,6 +122,23 @@ make lint
 
 The linter is also run automatically as part of `make build`.
 
+### Build Tags
+
+The project uses several build tags for compatibility:
+
+- **`remote`**: Use remote client mode (no local daemon required)
+- **`containers_image_openpgp`**: Use pure Go OpenPGP instead of gpgme (C library)
+- **`exclude_graphdriver_btrfs`**, **`btrfs_noversion`**: Exclude btrfs driver (requires C library)
+- **`exclude_graphdriver_devicemapper`**: Exclude devicemapper driver (requires C library)
+
+These tags are automatically applied by the Makefile to build, test, and lint commands.
+
+To exclude the Podman API implementation entirely (e.g., for minimal builds):
+
+```bash
+go build -tags "exclude_podman_api" ./...
+```
+
 ## Running
 
 The README demonstrates running the server via

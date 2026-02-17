@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 // ImageSuite tests image tools using the mock Podman API server.
@@ -19,17 +20,23 @@ type ImageSuite struct {
 	containerFile string
 }
 
-func TestImageSuite(t *testing.T) {
-	suite.Run(t, new(ImageSuite))
+// TestImageReadOnlySuiteWithAllImplementations runs read-only image tests with all implementations.
+func TestImageReadOnlySuiteWithAllImplementations(t *testing.T) {
+	for _, impl := range test.AvailableImplementations() {
+		t.Run(impl, func(t *testing.T) {
+			suite.Run(t, &ImageReadOnlySuite{
+				McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
+			})
+		})
+	}
 }
 
-func (s *ImageSuite) SetupTest() {
-	s.McpSuite.SetupTest()
-	// Create a temporary Containerfile for build tests
-	s.containerFile = test.CreateTempFile(s.T(), "Containerfile", "FROM alpine:latest\nRUN echo 'test'\n")
+// ImageReadOnlySuite tests read-only image operations (list).
+type ImageReadOnlySuite struct {
+	test.McpSuite
 }
 
-func (s *ImageSuite) TestImageList() {
+func (s *ImageReadOnlySuite) TestImageList() {
 	s.WithImageList([]test.ImageListResponse{
 		{
 			ID:          "sha256:abc123def456",
@@ -72,7 +79,7 @@ func (s *ImageSuite) TestImageList() {
 	})
 }
 
-func (s *ImageSuite) TestImageListEmpty() {
+func (s *ImageReadOnlySuite) TestImageListEmpty() {
 	s.WithImageList([]test.ImageListResponse{})
 
 	toolResult, err := s.CallTool("image_list", map[string]interface{}{})
@@ -88,6 +95,24 @@ func (s *ImageSuite) TestImageListEmpty() {
 		// Just verify no image data is present
 		s.NotContains(text, "nginx", "should not contain image data")
 	})
+}
+
+// TestImageWriteSuite runs write image tests with CLI implementation only.
+// Write operations (pull, push, remove, build) are not yet implemented in the API.
+//
+// TODO: Merge this suite into TestImageReadOnlySuiteWithAllImplementations once
+// Phase 3 (write operations) of the API implementation is complete.
+// See docs/specs/podman-rest-api-bindings.md for implementation phases.
+func TestImageWriteSuite(t *testing.T) {
+	suite.Run(t, &ImageSuite{
+		McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
+	})
+}
+
+func (s *ImageSuite) SetupTest() {
+	s.McpSuite.SetupTest()
+	// Create a temporary Containerfile for build tests
+	s.containerFile = test.CreateTempFile(s.T(), "Containerfile", "FROM alpine:latest\nRUN echo 'test'\n")
 }
 
 func (s *ImageSuite) TestImagePull() {
