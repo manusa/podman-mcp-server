@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 // NetworkSuite tests network tools using the mock Podman API server.
@@ -16,8 +17,14 @@ type NetworkSuite struct {
 	test.McpSuite
 }
 
-func TestNetworkSuite(t *testing.T) {
-	suite.Run(t, new(NetworkSuite))
+func TestNetworkSuiteWithAllImplementations(t *testing.T) {
+	for _, impl := range test.AvailableImplementations() {
+		t.Run(impl, func(t *testing.T) {
+			suite.Run(t, &NetworkSuite{
+				McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
+			})
+		})
+	}
 }
 
 func (s *NetworkSuite) TestNetworkList() {
