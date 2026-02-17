@@ -90,11 +90,13 @@ npx podman-mcp-server@latest --help
 
 ### Configuration Options
 
-| Option           | Description                                                                                      |
-|------------------|--------------------------------------------------------------------------------------------------|
-| `--port`, `-p`   | Starts the MCP server in HTTP mode with Streamable HTTP at `/mcp` and SSE at `/sse` endpoints.  |
-| `--sse-port`     | **Deprecated.** Use `--port` instead. Starts the MCP server in SSE-only mode.                   |
-| `--sse-base-url` | **Deprecated.** SSE public base URL to use when sending the endpoint message.                   |
+| Option                 | Description                                                                                      |
+|------------------------|--------------------------------------------------------------------------------------------------|
+| `--port`, `-p`         | Starts the MCP server in HTTP mode with Streamable HTTP at `/mcp` and SSE at `/sse` endpoints.  |
+| `--output-format`, `-o`| Output format for list commands: `text` (default, human-readable table) or `json`.              |
+| `--podman-impl`        | Podman implementation to use. Auto-detects if not specified.                                    |
+| `--sse-port`           | **Deprecated.** Use `--port` instead. Starts the MCP server in SSE-only mode.                   |
+| `--sse-base-url`       | **Deprecated.** SSE public base URL to use when sending the endpoint message.                   |
 
 ### Transport Modes
 
