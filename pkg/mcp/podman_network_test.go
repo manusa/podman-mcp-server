@@ -1,7 +1,7 @@
 package mcp_test
 
 import (
-	"regexp"
+	"encoding/json"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -57,12 +57,34 @@ func (s *NetworkSuite) TestNetworkList() {
 	s.Run("returns network data with expected format", func() {
 		text := toolResult.Content[0].(mcp.TextContent).Text
 
-		expectedHeaders := regexp.MustCompile(`(?m)^NETWORK ID\s+NAME\s+DRIVER\s*$`)
-		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
+		var networks []test.NetworkListResponse
+		s.Require().NoError(json.Unmarshal([]byte(text), &networks))
 
-		s.Contains(text, "podman", "should contain podman network")
-		s.Contains(text, "my-network", "should contain custom network")
-		s.Contains(text, "bridge", "should contain driver type")
+		s.Require().Len(networks, 2)
+
+		networksByName := make(map[string]test.NetworkListResponse)
+		for _, net := range networks {
+			networksByName[net.Name] = net
+		}
+
+		s.Require().Contains(networksByName, "podman", "should contain podman network")
+		s.Require().Contains(networksByName, "my-network", "should contain my-network network")
+
+		podmanNetwork := networksByName["podman"]
+		s.Equal("bridge", podmanNetwork.Driver)
+		s.Equal("podman0", podmanNetwork.NetworkInterface)
+		s.Equal("abc123def456", podmanNetwork.ID)
+		s.True(podmanNetwork.DNSEnabled, "podman network should have DNS enabled")
+		s.Require().NotEmpty(podmanNetwork.Subnets, "podman network should have subnets")
+		s.Equal("10.88.0.0/16", podmanNetwork.Subnets[0].Subnet)
+
+		myNetwork := networksByName["my-network"]
+		s.Equal("bridge", myNetwork.Driver)
+		s.Equal("", myNetwork.NetworkInterface)
+		s.Equal("xyz789ghi012", myNetwork.ID)
+		s.True(myNetwork.DNSEnabled, "my-network should have DNS enabled")
+		s.Require().NotEmpty(myNetwork.Subnets, "my-network should have subnets")
+		s.Equal("10.89.0.0/24", myNetwork.Subnets[0].Subnet)
 	})
 
 	s.Run("mock server received network list request", func() {
