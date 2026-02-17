@@ -12,6 +12,7 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
   - `cmd/podman-mcp-server/` – main application entry point.
   - `pkg/` – libraries grouped by domain.
     - `api/` - SDK-agnostic types for tool definitions (`ServerTool`, `ToolHandlerFunc`, `ToolHandlerParams`).
+    - `config/` - Server configuration (`Config` struct, defaults, and override merging).
     - `mcp/` - Model Context Protocol (MCP) server implementation using the official Go SDK, with tool definitions for containers, images, networks, and volumes.
     - `podman/` - Podman/Docker CLI abstraction layer with interface definition and CLI implementation.
     - `podman-mcp-server/cmd/` - CLI command definition using Cobra framework.
@@ -246,13 +247,13 @@ func (s *ContainerToolsSuite) TestContainerList() {
 
 #### Multi-Implementation Testing
 
-Tests can be run with different Podman implementations using the `PodmanImpl` field:
+Tests can be run with different configurations using the `Config` field:
 
 ```go
 // Run tests with a specific implementation
 func TestContainerToolsWithCLI(t *testing.T) {
     suite.Run(t, &ContainerSuite{
-        McpSuite: test.McpSuite{PodmanImpl: "cli"},
+        McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
     })
 }
 
@@ -260,7 +261,7 @@ func TestContainerToolsWithCLI(t *testing.T) {
 func TestContainerSuiteWithAllImplementations(t *testing.T) {
     for _, impl := range test.AvailableImplementations() {
         suite.Run(t, &ContainerSuite{
-            McpSuite: test.McpSuite{PodmanImpl: impl},
+            McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: impl}},
         })
     }
 }
@@ -283,7 +284,7 @@ The `internal/test/` package provides shared test utilities:
 
 - **`mcp.go`** - Test suite base:
   - `McpSuite` - Uses real podman CLI with mock HTTP backend
-    - `PodmanImpl string` - Field to specify which implementation to use (default: "cli")
+    - `Config config.Config` - Configuration for the MCP server (uses `config.Default()` if empty)
     - `CallTool()` - Call MCP tools with typed arguments
     - `CallToolRaw()` - Call MCP tools with raw JSON arguments (for testing malformed input)
     - `ListTools()` - Get list of available MCP tools

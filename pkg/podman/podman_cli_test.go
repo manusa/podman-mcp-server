@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/manusa/podman-mcp-server/pkg/config"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 )
 
@@ -111,31 +112,32 @@ func (s *PodmanCliSuite) TestCLIAvailable() {
 func (s *PodmanCliSuite) TestCLINew() {
 	impl := podman.ImplementationFromString("cli")
 	s.Require().NotNil(impl)
+	cfg := config.Default()
 
 	s.Run("succeeds when podman is in PATH", func() {
 		s.createMockBinariesInPath("podman")
-		p, err := impl.New()
+		p, err := impl.Initialize(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("succeeds when podman.exe is in PATH", func() {
 		s.createMockBinariesInPath("podman.exe")
-		p, err := impl.New()
+		p, err := impl.Initialize(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("succeeds when both podman and podman.exe exist", func() {
 		s.createMockBinariesInPath("podman", "podman.exe")
-		p, err := impl.New()
+		p, err := impl.Initialize(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("fails when no binary is in PATH", func() {
 		s.createMockBinariesInPath() // Empty PATH
-		_, err := impl.New()
+		_, err := impl.Initialize(cfg)
 		s.Error(err)
 		s.Contains(err.Error(), "podman CLI not found")
 	})
@@ -154,7 +156,7 @@ func (s *PodmanCliSuite) TestCLINew() {
 		err := os.WriteFile(binaryPath, []byte(content), 0755)
 		s.Require().NoError(err)
 
-		_, err = impl.New()
+		_, err = impl.Initialize(cfg)
 		s.Error(err)
 		s.Contains(err.Error(), "podman CLI not found")
 	})
@@ -163,21 +165,24 @@ func (s *PodmanCliSuite) TestCLINew() {
 func (s *PodmanCliSuite) TestNewPodmanWithCLI() {
 	s.Run("empty override returns CLI implementation", func() {
 		s.createMockBinariesInPath("podman")
-		p, err := podman.NewPodman("")
+		cfg := config.Config{} // Auto-detect (empty PodmanImpl)
+		p, err := podman.NewPodman(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("explicit cli override returns CLI implementation", func() {
 		s.createMockBinariesInPath("podman")
-		p, err := podman.NewPodman("cli")
+		cfg := config.Config{PodmanImpl: "cli"}
+		p, err := podman.NewPodman(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("cli override fails when podman not available", func() {
 		s.createMockBinariesInPath() // Empty PATH
-		_, err := podman.NewPodman("cli")
+		cfg := config.Config{PodmanImpl: "cli"}
+		_, err := podman.NewPodman(cfg)
 		s.Error(err)
 
 		var notAvailErr *podman.ErrImplementationNotAvailable
@@ -189,14 +194,16 @@ func (s *PodmanCliSuite) TestNewPodmanWithCLI() {
 func (s *PodmanCliSuite) TestNewPodmanAutoDetectionWithCLI() {
 	s.Run("auto-detects CLI when available", func() {
 		s.createMockBinariesInPath("podman")
-		p, err := podman.NewPodman()
+		cfg := config.Config{} // Auto-detect
+		p, err := podman.NewPodman(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})
 
 	s.Run("returns error when CLI not available and no other implementations", func() {
 		s.createMockBinariesInPath() // Empty PATH
-		_, err := podman.NewPodman()
+		cfg := config.Config{}       // Auto-detect
+		_, err := podman.NewPodman(cfg)
 		s.Error(err)
 
 		var noImplErr *podman.ErrNoImplementationAvailable
@@ -224,7 +231,8 @@ func (s *PodmanCliSuite) TestCLINewWithRealBinary() {
 			s.T().Skip("real podman binary not available")
 		}
 
-		p, err := impl.New()
+		cfg := config.Default()
+		p, err := impl.Initialize(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})

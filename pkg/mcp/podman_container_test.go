@@ -1,8 +1,8 @@
 package mcp_test
 
 import (
-	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -58,30 +58,16 @@ func (s *ContainerSuite) TestContainerList() {
 	s.Run("returns container data with expected format", func() {
 		text := toolResult.Content[0].(mcp.TextContent).Text
 
-		var containers []test.ContainerListResponse
-		s.Require().NoError(json.Unmarshal([]byte(text), &containers))
+		expectedHeaders := regexp.MustCompile(`(?m)^CONTAINER ID\s+IMAGE\s+COMMAND\s+CREATED\s+STATUS\s+PORTS\s+NAMES\s*$`)
+		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
 
-		s.Require().Len(containers, 2)
-
-		containersByID := make(map[string]test.ContainerListResponse)
-		for _, cont := range containers {
-			containersByID[cont.ID] = cont
+		expectedRows := []string{
+			`abc123def456\s+.*nginx.*\s+.*\s+.*\s+.*\s+.*\s+test-container-1`,
+			`xyz789ghi012\s+.*redis.*\s+.*\s+.*\s+.*\s+.*\s+test-container-2`,
 		}
-
-		s.Contains(containersByID, "abc123def456", "should contain test-container-1 container")
-		s.Contains(containersByID, "xyz789ghi012", "should contain test-container-2 container")
-
-		nginxContainer := containersByID["abc123def456"]
-		s.Contains(nginxContainer.Image, "nginx", "should contain nginx image")
-		s.Require().NotEmpty(nginxContainer.Names, "should have container names")
-		s.Contains(nginxContainer.Names[0], "test-container-1", "should have correct name")
-		s.Equal("running", nginxContainer.State, "should be running")
-
-		redisContainer := containersByID["xyz789ghi012"]
-		s.Contains(redisContainer.Image, "redis", "should contain redis image")
-		s.Require().NotEmpty(redisContainer.Names, "should have container names")
-		s.Contains(redisContainer.Names[0], "test-container-2", "should have correct name")
-		s.Equal("exited", redisContainer.State, "should be exited")
+		for _, row := range expectedRows {
+			s.Regexpf(row, text, "expected row '%s' not found in output:\n%s", row, text)
+		}
 	})
 
 	s.Run("mock server received container list request", func() {

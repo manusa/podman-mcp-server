@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/manusa/podman-mcp-server/pkg/config"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 )
 
@@ -14,11 +15,13 @@ type registryMockImplementation struct {
 	priority int
 }
 
-func (m *registryMockImplementation) Name() string                { return m.name }
-func (m *registryMockImplementation) Description() string         { return "Mock: " + m.name }
-func (m *registryMockImplementation) Available() bool             { return true }
-func (m *registryMockImplementation) Priority() int               { return m.priority }
-func (m *registryMockImplementation) New() (podman.Podman, error) { return nil, nil }
+func (m *registryMockImplementation) Name() string        { return m.name }
+func (m *registryMockImplementation) Description() string { return "Mock: " + m.name }
+func (m *registryMockImplementation) Available() bool     { return true }
+func (m *registryMockImplementation) Priority() int       { return m.priority }
+func (m *registryMockImplementation) Initialize(_ config.Config) (podman.Podman, error) {
+	return nil, nil
+}
 
 type RegistrySuite struct {
 	suite.Suite

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 func init() {
@@ -12,7 +14,8 @@ func init() {
 }
 
 type podmanCli struct {
-	filePath string
+	filePath     string
+	outputFormat string
 }
 
 // Name returns the unique identifier for this implementation.
@@ -38,14 +41,17 @@ func (p *podmanCli) Priority() int {
 	return 50
 }
 
-// New creates and initializes a new podmanCli instance.
+// Initialize creates and initializes a new podmanCli instance.
 // It finds the podman binary in PATH and verifies it works.
-func (p *podmanCli) New() (Podman, error) {
+func (p *podmanCli) Initialize(cfg config.Config) (Podman, error) {
 	filePath, err := findBinary()
 	if err != nil {
 		return nil, err
 	}
-	return &podmanCli{filePath: filePath}, nil
+	return &podmanCli{
+		filePath:     filePath,
+		outputFormat: cfg.OutputFormat,
+	}, nil
 }
 
 // findBinary searches for a working podman binary in PATH.
@@ -75,7 +81,11 @@ func (p *podmanCli) ContainerInspect(name string) (string, error) {
 // ContainerList
 // https://docs.podman.io/en/stable/markdown/podman-ps.1.html
 func (p *podmanCli) ContainerList() (string, error) {
-	return p.exec("container", "list", "-a", "--format", "json")
+	args := []string{"container", "list", "-a"}
+	if p.outputFormat == config.OutputFormatJSON {
+		args = append(args, "--format", "json")
+	}
+	return p.exec(args...)
 }
 
 // ContainerLogs
@@ -136,7 +146,11 @@ func (p *podmanCli) ImageBuild(containerFile string, imageName string) (string, 
 // ImageList
 // https://docs.podman.io/en/stable/markdown/podman-images.1.html
 func (p *podmanCli) ImageList() (string, error) {
-	return p.exec("images", "--digests", "--format", "json")
+	args := []string{"images", "--digests"}
+	if p.outputFormat == config.OutputFormatJSON {
+		args = append(args, "--format", "json")
+	}
+	return p.exec(args...)
 }
 
 // ImagePull
@@ -174,13 +188,21 @@ func (p *podmanCli) ImageRemove(imageName string) (string, error) {
 // NetworkList
 // https://docs.podman.io/en/stable/markdown/podman-network-ls.1.html
 func (p *podmanCli) NetworkList() (string, error) {
-	return p.exec("network", "ls", "--format", "json")
+	args := []string{"network", "ls"}
+	if p.outputFormat == config.OutputFormatJSON {
+		args = append(args, "--format", "json")
+	}
+	return p.exec(args...)
 }
 
 // VolumeList
 // https://docs.podman.io/en/stable/markdown/podman-volume-ls.1.html
 func (p *podmanCli) VolumeList() (string, error) {
-	return p.exec("volume", "ls", "--format", "json")
+	args := []string{"volume", "ls"}
+	if p.outputFormat == config.OutputFormatJSON {
+		args = append(args, "--format", "json")
+	}
+	return p.exec(args...)
 }
 
 func (p *podmanCli) exec(args ...string) (string, error) {

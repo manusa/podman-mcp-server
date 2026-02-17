@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/manusa/podman-mcp-server/pkg/config"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 )
 
@@ -14,16 +15,16 @@ type mockImplementation struct {
 	description string
 	available   bool
 	priority    int
-	newFunc     func() (podman.Podman, error)
+	initFunc    func(config.Config) (podman.Podman, error)
 }
 
 func (m *mockImplementation) Name() string        { return m.name }
 func (m *mockImplementation) Description() string { return m.description }
 func (m *mockImplementation) Available() bool     { return m.available }
 func (m *mockImplementation) Priority() int       { return m.priority }
-func (m *mockImplementation) New() (podman.Podman, error) {
-	if m.newFunc != nil {
-		return m.newFunc()
+func (m *mockImplementation) Initialize(cfg config.Config) (podman.Podman, error) {
+	if m.initFunc != nil {
+		return m.initFunc(cfg)
 	}
 	return nil, nil
 }
@@ -52,7 +53,8 @@ func (s *InterfaceSuite) TearDownTest() {
 }
 
 func (s *InterfaceSuite) TestNewPodmanWithUnknownImplementation() {
-	_, err := podman.NewPodman("nonexistent-impl")
+	cfg := config.Config{PodmanImpl: "nonexistent-impl"}
+	_, err := podman.NewPodman(cfg)
 
 	s.Run("returns ErrUnknownImplementation", func() {
 		s.Error(err)
@@ -78,7 +80,8 @@ func (s *InterfaceSuite) TestNewPodmanWithUnavailableImplementation() {
 		priority:  100,
 	})
 
-	_, err := podman.NewPodman("unavailable-mock")
+	cfg := config.Config{PodmanImpl: "unavailable-mock"}
+	_, err := podman.NewPodman(cfg)
 
 	s.Run("returns ErrImplementationNotAvailable", func() {
 		s.Error(err)
@@ -102,7 +105,8 @@ func (s *InterfaceSuite) TestNewPodmanAutoDetectionWithNoAvailableImplementation
 		priority:  50,
 	})
 
-	_, err := podman.NewPodman()
+	cfg := config.Config{} // Auto-detect (empty PodmanImpl)
+	_, err := podman.NewPodman(cfg)
 
 	s.Run("returns ErrNoImplementationAvailable", func() {
 		s.Error(err)
@@ -127,7 +131,7 @@ func (s *InterfaceSuite) TestNewPodmanAutoDetectionSelectsHighestPriority() {
 		name:      "low-priority",
 		available: true,
 		priority:  10,
-		newFunc: func() (podman.Podman, error) {
+		initFunc: func(_ config.Config) (podman.Podman, error) {
 			lowPriorityCalled = true
 			return nil, nil
 		},
@@ -136,13 +140,14 @@ func (s *InterfaceSuite) TestNewPodmanAutoDetectionSelectsHighestPriority() {
 		name:      "high-priority",
 		available: true,
 		priority:  100,
-		newFunc: func() (podman.Podman, error) {
+		initFunc: func(_ config.Config) (podman.Podman, error) {
 			highPriorityCalled = true
 			return nil, nil
 		},
 	})
 
-	_, _ = podman.NewPodman()
+	cfg := config.Config{} // Auto-detect
+	_, _ = podman.NewPodman(cfg)
 
 	s.Run("calls high priority implementation", func() {
 		s.True(highPriorityCalled)
@@ -168,13 +173,14 @@ func (s *InterfaceSuite) TestNewPodmanAutoDetectionSkipsUnavailable() {
 		name:      "available-low",
 		available: true,
 		priority:  10,
-		newFunc: func() (podman.Podman, error) {
+		initFunc: func(_ config.Config) (podman.Podman, error) {
 			fallbackCalled = true
 			return nil, nil
 		},
 	})
 
-	_, err := podman.NewPodman()
+	cfg := config.Config{} // Auto-detect
+	_, err := podman.NewPodman(cfg)
 
 	s.Run("succeeds", func() {
 		s.NoError(err)
@@ -207,11 +213,12 @@ func (s *InterfaceSuite) TestImplementationInterface() {
 		_ = impl.Available()
 	})
 
-	s.Run("New returns Podman instance when available", func() {
+	s.Run("Initialize returns Podman instance when available", func() {
 		if !impl.Available() {
 			s.T().Skip("CLI implementation not available")
 		}
-		p, err := impl.New()
+		cfg := config.Default()
+		p, err := impl.Initialize(cfg)
 		s.NoError(err)
 		s.NotNil(p)
 	})

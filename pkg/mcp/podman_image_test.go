@@ -1,8 +1,8 @@
 package mcp_test
 
 import (
-	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -60,28 +60,11 @@ func (s *ImageSuite) TestImageList() {
 	s.Run("returns image data with expected format", func() {
 		text := toolResult.Content[0].(mcp.TextContent).Text
 
-		var images []test.ImageListResponse
-		s.Require().NoError(json.Unmarshal([]byte(text), &images))
+		expectedHeaders := regexp.MustCompile(`(?m)^REPOSITORY\s+TAG\s+DIGEST\s+IMAGE ID\s+CREATED\s+SIZE\s*$`)
+		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
 
-		s.Require().Len(images, 2)
-
-		imagesByID := make(map[string]test.ImageListResponse)
-		for _, img := range images {
-			imagesByID[img.ID] = img
-		}
-
-		s.Contains(imagesByID, "sha256:abc123def456", "should contain nginx image")
-		s.Contains(imagesByID, "sha256:xyz789ghi012", "should contain redis image")
-
-		nginxImg := imagesByID["sha256:abc123def456"]
-		s.Require().NotEmpty(nginxImg.RepoDigests, "nginx image should have RepoDigests")
-		s.Contains(nginxImg.RepoDigests[0], "nginx", "should contain nginx digest")
-		s.Equal(int64(142000000), nginxImg.Size, "nginx image size should match")
-
-		redisImg := imagesByID["sha256:xyz789ghi012"]
-		s.Require().NotEmpty(redisImg.RepoDigests, "redis image should have RepoDigests")
-		s.Contains(redisImg.RepoDigests[0], "redis", "should contain redis digest")
-		s.Equal(int64(37000000), redisImg.Size, "redis image size should match")
+		s.Contains(text, "nginx", "should contain nginx image")
+		s.Contains(text, "redis", "should contain redis image")
 	})
 
 	s.Run("mock server received image list request", func() {

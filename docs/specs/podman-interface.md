@@ -44,17 +44,17 @@ type Podman interface {
 
 ### Implementation Interface
 
-Each implementation must satisfy both `Podman` and provide metadata:
+Each implementation must provide metadata and a factory method:
 
 ```go
 // pkg/podman/registry.go
 
 type Implementation interface {
-    Podman
-    Name() string        // Unique identifier (e.g., "cli", "api")
-    Description() string // Human-readable description for help text
-    Available() bool     // Whether this implementation can be used
-    Priority() int       // Higher priority = tried first in auto-detection
+    Name() string                             // Unique identifier (e.g., "cli", "api")
+    Description() string                      // Human-readable description for help text
+    Available() bool                          // Whether this implementation can be used
+    Priority() int                            // Higher priority = tried first in auto-detection
+    Initialize(config.Config) (Podman, error) // Creates and initializes a new instance
 }
 ```
 
@@ -84,15 +84,30 @@ func ImplementationFromString(name string) Implementation
 func Clear()
 ```
 
+### Configuration
+
+The `config.Config` struct holds configuration for the server:
+
+```go
+// pkg/config/config.go
+
+type Config struct {
+    PodmanImpl   string // Which implementation to use ("cli", "api", or "" for auto-detect)
+    OutputFormat string // Output format for list commands ("text" or "json")
+}
+```
+
+Default values are provided by `config.Default()`, and CLI flags can override them via `config.WithOverrides()`.
+
 ### Implementation Selection
 
 ```go
 // pkg/podman/interface.go
 
 // NewPodman returns a Podman implementation.
-// If override is empty, auto-detects by iterating implementations by priority.
-// If override is specified, returns that implementation or error if unavailable.
-func NewPodman(override string) (Podman, error)
+// If cfg.PodmanImpl is empty, auto-detects by iterating implementations by priority.
+// If cfg.PodmanImpl is specified, returns that implementation or error if unavailable.
+func NewPodman(cfg config.Config) (Podman, error)
 ```
 
 Selection logic:
@@ -129,6 +144,10 @@ Selection logic:
 ### Package Structure
 
 ```
+pkg/config/
+├── config.go             # Config struct definition
+└── config_default.go     # Default() and WithOverrides() functions
+
 pkg/podman/
 ├── interface.go          # Podman interface + NewPodman()
 ├── registry.go           # Implementation registry
@@ -152,13 +171,14 @@ Higher priority implementations are tried first during auto-detection.
 
 ## Configuration
 
-### CLI Flag
+### CLI Flags
 
 | Flag | Description |
 |------|-------------|
 | `--podman-impl` | Override implementation selection (available: listed in help) |
+| `--output-format`, `-o` | Output format for list commands: `text` (default) or `json` |
 
-The flag description dynamically lists available implementations using `ImplementationNames()`:
+The `--podman-impl` flag description dynamically lists available implementations using `ImplementationNames()`:
 
 ```go
 // pkg/podman-mcp-server/cmd/root.go
@@ -244,9 +264,11 @@ func (m *mockPodman) Priority() int       { return 1000 }
 
 | Component | Location |
 |-----------|----------|
+| Config struct | `pkg/config/config.go` |
+| Config defaults | `pkg/config/config_default.go` |
 | Podman interface | `pkg/podman/interface.go` |
 | Implementation registry | `pkg/podman/registry.go` |
-| CLI flag | `pkg/podman-mcp-server/cmd/root.go` |
+| CLI flags | `pkg/podman-mcp-server/cmd/root.go` |
 
 ## Related Specs
 

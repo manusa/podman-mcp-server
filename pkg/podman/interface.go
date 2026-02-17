@@ -3,6 +3,8 @@ package podman
 import (
 	"sort"
 	"strings"
+
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 // Podman interface
@@ -36,24 +38,19 @@ type Podman interface {
 }
 
 // NewPodman returns a Podman implementation.
-// If override is empty or not provided, auto-detects by iterating implementations by priority.
-// If override is specified, returns that implementation or error if unavailable.
-func NewPodman(override ...string) (Podman, error) {
-	implName := ""
-	if len(override) > 0 {
-		implName = override[0]
-	}
-
-	if implName != "" {
+// If cfg.PodmanImpl is empty, auto-detects by iterating implementations by priority.
+// If cfg.PodmanImpl is specified, returns that implementation or error if unavailable.
+func NewPodman(cfg config.Config) (Podman, error) {
+	if cfg.PodmanImpl != "" {
 		// User specified an implementation
-		impl := ImplementationFromString(implName)
+		impl := ImplementationFromString(cfg.PodmanImpl)
 		if impl == nil {
-			return nil, &ErrUnknownImplementation{Name: implName, Available: ImplementationNames()}
+			return nil, &ErrUnknownImplementation{Name: cfg.PodmanImpl, Available: ImplementationNames()}
 		}
 		if !impl.Available() {
-			return nil, &ErrImplementationNotAvailable{Name: implName, Reason: "not available on this system"}
+			return nil, &ErrImplementationNotAvailable{Name: cfg.PodmanImpl, Reason: "not available on this system"}
 		}
-		return impl.New()
+		return impl.Initialize(cfg)
 	}
 
 	// Auto-detect: sort by priority (descending) and return first available
@@ -65,7 +62,7 @@ func NewPodman(override ...string) (Podman, error) {
 	var tried []string
 	for _, impl := range impls {
 		if impl.Available() {
-			return impl.New()
+			return impl.Initialize(cfg)
 		}
 		tried = append(tried, impl.Name()+" (not available)")
 	}

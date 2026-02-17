@@ -4,17 +4,19 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/manusa/podman-mcp-server/pkg/config"
 )
 
 // Implementation represents a Podman implementation with metadata.
 // Each implementation must provide metadata for registration, discovery,
 // and selection, plus a factory method to create initialized instances.
 type Implementation interface {
-	Name() string         // Unique identifier (e.g., "cli", "api")
-	Description() string  // Human-readable description for help text
-	Available() bool      // Whether this implementation can be used
-	Priority() int        // Higher priority = tried first in auto-detection
-	New() (Podman, error) // Creates and initializes a new instance
+	Name() string                             // Unique identifier (e.g., "cli", "api")
+	Description() string                      // Human-readable description for help text
+	Available() bool                          // Whether this implementation can be used
+	Priority() int                            // Higher priority = tried first in auto-detection
+	Initialize(config.Config) (Podman, error) // Creates and initializes a new instance
 }
 
 var (

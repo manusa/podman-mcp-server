@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/manusa/podman-mcp-server/pkg/api"
+	"github.com/manusa/podman-mcp-server/pkg/config"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/manusa/podman-mcp-server/pkg/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -18,33 +19,8 @@ type Server struct {
 	podman podman.Podman
 }
 
-// serverConfig holds the configuration for the MCP server.
-type serverConfig struct {
-	podmanImpl string
-}
-
-// ServerOption configures the MCP server.
-type ServerOption func(*serverConfig)
-
-// WithPodmanImpl sets the Podman implementation to use.
-// If not specified, auto-detects the best available implementation.
-// Valid values: "cli" (default), "api" (future)
-func WithPodmanImpl(impl string) ServerOption {
-	return func(c *serverConfig) {
-		c.podmanImpl = impl
-	}
-}
-
 // NewServer creates a new MCP server with all tools registered.
-// Use functional options to configure the server:
-//
-//	server, err := mcp.NewServer(mcp.WithPodmanImpl("cli"))
-func NewServer(opts ...ServerOption) (*Server, error) {
-	cfg := &serverConfig{}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
+func NewServer(cfg config.Config) (*Server, error) {
 	s := &Server{
 		server: mcp.NewServer(
 			&mcp.Implementation{
@@ -61,7 +37,7 @@ func NewServer(opts ...ServerOption) (*Server, error) {
 	}
 
 	var err error
-	if s.podman, err = podman.NewPodman(cfg.podmanImpl); err != nil {
+	if s.podman, err = podman.NewPodman(cfg); err != nil {
 		return nil, err
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/manusa/podman-mcp-server/pkg/config"
 	mcpServer "github.com/manusa/podman-mcp-server/pkg/mcp"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 )
@@ -30,19 +31,18 @@ import (
 // Note: This suite requires a real podman or docker binary to be available.
 // If neither is available, tests using this suite will be skipped.
 //
-// For multi-implementation testing, set the PodmanImpl field before running:
+// For custom configuration, set the Config field before running:
 //
 //	func TestContainerToolsWithCLI(t *testing.T) {
 //	    suite.Run(t, &ContainerToolsSuite{
-//	        McpSuite: test.McpSuite{PodmanImpl: "cli"},
+//	        McpSuite: test.McpSuite{Config: config.Config{PodmanImpl: "cli"}},
 //	    })
 //	}
 type McpSuite struct {
 	suite.Suite
-	// PodmanImpl specifies which Podman implementation to use for tests.
-	// If empty, uses the default implementation (currently "cli").
-	// Valid values: "cli" (default), "api" (future)
-	PodmanImpl    string
+	// Config specifies the configuration for the MCP server.
+	// If empty, uses config.Default().
+	Config        config.Config
 	originalEnv   []string
 	MockServer    *MockPodmanServer
 	mcpServer     *mcpServer.Server
@@ -72,11 +72,8 @@ func (s *McpSuite) SetupTest() {
 	WithContainerHost(s.T(), s.MockServer.URL())
 
 	// Create MCP server (it will use the real podman binary which talks to mock server)
-	var serverOpts []mcpServer.ServerOption
-	if s.PodmanImpl != "" {
-		serverOpts = append(serverOpts, mcpServer.WithPodmanImpl(s.PodmanImpl))
-	}
-	s.mcpServer, err = mcpServer.NewServer(serverOpts...)
+	cfg := config.WithOverrides(s.Config)
+	s.mcpServer, err = mcpServer.NewServer(cfg)
 	s.Require().NoError(err)
 
 	// Wrap in httptest.Server with Streamable HTTP handler
