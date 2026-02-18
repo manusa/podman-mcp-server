@@ -29,7 +29,7 @@ docker --version
 docker info
 ```
 
-The server automatically detects and uses whichever runtime (Podman or Docker) is available. Podman is preferred when both are present.
+The server automatically detects and uses whichever runtime (Podman or Docker) is available on your system.
 
 ## Next Steps
 
@@ -37,4 +37,4 @@ Once your container runtime is ready, proceed to configure the MCP server with y
 
 - [Using with Claude Desktop](GETTING_STARTED_CLAUDE_DESKTOP.md)
 - [Using with VS Code / Cursor](GETTING_STARTED_VSCODE.md)
-- [Using with Goose CLI](GETTING_STARTED_GOOSE.md)
+- [Using with Goose CLI](GETTING_STARTED_GOOSE_CLI.md)
