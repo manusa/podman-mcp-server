@@ -11,8 +11,6 @@ Goose stores configuration in:
 | **macOS / Linux** | `~/.config/goose/config.yaml`                                                                           |
 | **Windows**       | `%APPDATA%\Block\goose\config\config.yaml` (e.g. `C:\Users\<user>\AppData\Roaming\Block\goose\config\`) |
 
-Related files in the same directory: `profiles.yaml` (providers and extension settings). Create `~/.config/goose/logs` manually if logs are missing.
-
 ## Installation
 
 ### Method 1: Direct Config Edit
@@ -22,19 +20,13 @@ Add the Podman MCP server to the `extensions` section of your `config.yaml`:
 ```yaml
 extensions:
   podman:
+    name: podman
+    cmd: npx
+    args: [-y, podman-mcp-server@latest]
     enabled: true
     type: stdio
-    name: podman
-    description: this is a mcp server
-    cmd: npx
-    args:
-    - -y
-    - podman-mcp-server@latest
     envs: {}
-    env_keys: []
     timeout: 300
-    bundled: null
-    available_tools: []
 ```
 
 If you already have other extensions, add the `podman` entry alongside them.
@@ -49,12 +41,38 @@ goose configure
 
 1. Select **Add Extension**
 2. Choose **Command-line Extension** (for local STDIO servers)
-3. Set:
+3. Follow the prompts:
    - **Name:** `podman`
    - **Command:** `npx -y podman-mcp-server@latest`
    - **Timeout:** `300` (recommended for slower startup; increase if needed)
-4. Skip environment variables unless required
-5. Save and exit
+   - **Environment variables:** skip unless required
+4. Save and exit
+
+Example wizard output:
+
+```
+┌   goose-configure
+│
+◇  What would you like to configure?
+│  Add Extension
+│
+◇  What type of extension would you like to add?
+│  Command-line Extension
+│
+◇  What would you like to call this extension?
+│  podman
+│
+◇  What command should be run?
+│  npx -y podman-mcp-server@latest
+│
+◇  Please set the timeout for this tool (in secs):
+│  300
+│
+◆  Would you like to add environment variables?
+│  No
+│
+└  Added podman extension
+```
 
 ## Requirements
 
@@ -63,13 +81,13 @@ goose configure
 
 ## Verifying
 
-1. **Check extension is recorded:**
+1. **Check extension is enabled:**
 
    ```bash
-   goose info -v
+   goose configure
    ```
 
-   Confirm `podman` appears under extensions.
+   Select **Toggle Extensions** and confirm `podman` appears and is enabled.
 
 2. **Start a session and discover tools:**
 
@@ -91,3 +109,4 @@ goose configure
 ## References
 
 - [Goose Documentation](https://block.github.io/goose/docs/) – Official docs
+- [Using Extensions](https://block.github.io/goose/docs/getting-started/using-extensions/) – Extension configuration guide
