@@ -41,20 +41,6 @@ Add the Podman MCP server to your `claude_desktop_config.json`:
 }
 ```
 
-If you already have other MCP servers, add the `podman` entry inside the existing `mcpServers` object:
-
-```json
-{
-  "mcpServers": {
-    "filesystem": { ... },
-    "podman": {
-      "command": "npx",
-      "args": ["-y", "podman-mcp-server@latest"]
-    }
-  }
-}
-```
-
 ## Requirements
 
 - [Node.js](https://nodejs.org/) (for `npx`) or the [standalone binary](https://github.com/manusa/podman-mcp-server/releases/latest)
@@ -88,33 +74,10 @@ If you prefer not to use npm, download the binary for your platform and configur
 }
 ```
 
-## Platform-Specific Notes
-
-### Windows
-
-- If the server fails to load with `${APPDATA}`-related errors, add the expanded path to `env`:
-  
-  ```json
-  "podman": {
-    "command": "npx",
-    "args": ["-y", "podman-mcp-server@latest"],
-    "env": {
-      "APPDATA": "C:\\Users\\<user>\\AppData\\Roaming"
-    }
-  }
-  ```
-
-- Ensure `npx` is on your PATH (npm is installed globally).
-
-### Linux
-
-- Ensure `~/.config/Claude` exists before creating the config file.
-- If using a binary, make it executable: `chmod +x podman-mcp-server`.
-
 ## Verifying
 
 1. **Restart Claude Desktop completely** (closing the window is not enough).
-2. Look for the 🔨 hammer icon in the bottom-right of the chat input—this indicates MCP servers are loaded.
+2. Look for the 🔨 hammer icon in the bottom-right of the chat input — this indicates MCP servers are loaded.
 3. Click the icon to see available tools, including Podman tools.
 4. Ask Claude to list containers, pull images, or run containers.
 
@@ -126,5 +89,5 @@ If you prefer not to use npm, download the binary for your platform and configur
 
 ## References
 
-- [Connect to local MCP servers](https://modelcontextprotocol.io/docs/develop/connect-local-servers) – Official MCP documentation
+- [Connect to local MCP servers](https://modelcontextprotocol.io/docs/develop/connect-local-servers) — Official MCP documentation
 - [Claude Desktop download](https://claude.ai/download)
