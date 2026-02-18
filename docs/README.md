@@ -11,7 +11,7 @@ Choose the guide that matches your needs:
 | **[Getting Started with Podman/Docker](GETTING_STARTED_PODMAN.md)** | Prerequisites: Install Podman or Docker and verify the runtime is working | Everyone – **start here first** |
 | **[Using with Claude Desktop](GETTING_STARTED_CLAUDE_DESKTOP.md)**  | Configure the MCP server with Claude Desktop                              | Claude Desktop users            |
 | **[Using with VS Code / Cursor](GETTING_STARTED_VSCODE.md)**        | Configure the MCP server with VS Code or Cursor                           | VS Code and Cursor users        |
-| **[Using with Goose CLI](GETTING_STARTED_GOOSE.md)**                | Configure the MCP server with Goose CLI                                   | Goose CLI users                 |
+| **[Using with Goose CLI](GETTING_STARTED_GOOSE_CLI.md)**            | Configure the MCP server with Goose CLI                                   | Goose CLI users                 |
 
 ## Recommended Workflow
 
