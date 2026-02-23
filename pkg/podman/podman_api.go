@@ -204,8 +204,11 @@ func (p *podmanApi) ContainerRemove(name string) (string, error) {
 
 // ContainerRun runs a new container from an image.
 func (p *podmanApi) ContainerRun(imageName string, portMappings map[int]int, envVariables []string) (string, error) {
-	// Try to pull image first (mirrors CLI behavior)
-	_, _ = p.pullImageWithShortNameRetry(imageName)
+	// Best-effort pull: unlike the CLI's `podman run` which auto-pulls, the API's
+	// CreateWithSpec does not. We pre-pull here so the image is available locally.
+	// Errors are intentionally ignored — if the image already exists locally or the
+	// pull fails, CreateWithSpec will surface a proper error.
+	_, _, _ = p.pullImageWithShortNameRetry(imageName)
 
 	s := specgen.NewSpecGenerator(imageName, false)
 	s.Remove = boolPtr(true) // --rm
@@ -236,8 +239,8 @@ func (p *podmanApi) ContainerRun(imageName string, portMappings map[int]int, env
 
 	createResponse, err := containers.CreateWithSpec(p.ctx, s, nil)
 	if err != nil {
-		// Short-name retry: if creation fails, try with docker.io/ prefix
-		if !strings.Contains(imageName, "/") || strings.Contains(err.Error(), "short-name") {
+		// Short-name retry: if creation fails due to short-name resolution, try with docker.io/ prefix
+		if strings.Contains(err.Error(), "short-name") {
 			s.Image = "docker.io/" + imageName
 			createResponse, err = containers.CreateWithSpec(p.ctx, s, nil)
 			if err != nil {
@@ -298,25 +301,15 @@ func (p *podmanApi) ImageList() (string, error) {
 
 // ImagePull pulls an image from a registry.
 func (p *podmanApi) ImagePull(imageName string) (string, error) {
-	quiet := true
-	opts := &images.PullOptions{Quiet: &quiet}
-	pulledImages, err := images.Pull(p.ctx, imageName, opts)
+	pulledImages, resolvedName, err := p.pullImageWithShortNameRetry(imageName)
 	if err != nil {
-		if strings.Contains(err.Error(), "short-name") {
-			imageName = "docker.io/" + imageName
-			pulledImages, err = images.Pull(p.ctx, imageName, opts)
-			if err != nil {
-				return "", err
-			}
-		} else {
-			return "", err
-		}
+		return "", err
 	}
 	result := strings.Join(pulledImages, "\n")
 	if result != "" {
 		result += "\n"
 	}
-	return result + imageName + " pulled successfully", nil
+	return result + resolvedName + " pulled successfully", nil
 }
 
 // ImagePush pushes an image to a registry.
@@ -536,17 +529,20 @@ func formatPorts(ports []netTypes.PortMapping) string {
 }
 
 // pullImageWithShortNameRetry pulls an image, retrying with docker.io/ prefix on short-name errors.
-func (p *podmanApi) pullImageWithShortNameRetry(imageName string) ([]string, error) {
+// Returns the pulled images, the resolved image name (which may have docker.io/ prepended), and any error.
+func (p *podmanApi) pullImageWithShortNameRetry(imageName string) ([]string, string, error) {
 	quiet := true
 	opts := &images.PullOptions{Quiet: &quiet}
 	pulledImages, err := images.Pull(p.ctx, imageName, opts)
 	if err == nil {
-		return pulledImages, nil
+		return pulledImages, imageName, nil
 	}
 	if strings.Contains(err.Error(), "short-name") {
-		return images.Pull(p.ctx, "docker.io/"+imageName, opts)
+		resolved := "docker.io/" + imageName
+		pulledImages, err = images.Pull(p.ctx, resolved, opts)
+		return pulledImages, resolved, err
 	}
-	return nil, err
+	return nil, imageName, err
 }
 
 // boolPtr returns a pointer to the given bool value.
