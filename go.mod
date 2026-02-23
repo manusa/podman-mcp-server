@@ -7,7 +7,7 @@ toolchain go1.25.1
 require (
 	github.com/containers/buildah v1.43.0
 	github.com/containers/podman/v5 v5.8.0
-	github.com/mark3labs/mcp-go v0.43.2
+	github.com/mark3labs/mcp-go v0.44.0
 	github.com/modelcontextprotocol/go-sdk v1.3.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
