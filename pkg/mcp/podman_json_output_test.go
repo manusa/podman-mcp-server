@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
@@ -67,7 +67,7 @@ func (s *JSONOutputSuite) TestContainerListJSON() {
 	})
 
 	s.Run("returns valid JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		var containers []map[string]interface{}
 		s.Require().NoError(json.Unmarshal([]byte(text), &containers), "output should be valid JSON array")
@@ -110,7 +110,7 @@ func (s *JSONOutputSuite) TestContainerListEmptyJSON() {
 	})
 
 	s.Run("returns empty JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.JSONEq(`[]`, text)
 	})
 }
@@ -127,7 +127,7 @@ func (s *JSONOutputSuite) TestContainerListErrorJSON() {
 	})
 
 	s.Run("error message is not empty", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text)
 	})
 }
@@ -158,7 +158,7 @@ func (s *JSONOutputSuite) TestImageListJSON() {
 	})
 
 	s.Run("returns valid JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		var images []map[string]interface{}
 		s.Require().NoError(json.Unmarshal([]byte(text), &images), "output should be valid JSON array")
@@ -197,7 +197,7 @@ func (s *JSONOutputSuite) TestImageListEmptyJSON() {
 	})
 
 	s.Run("returns empty JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.JSONEq(`[]`, text)
 	})
 }
@@ -214,7 +214,7 @@ func (s *JSONOutputSuite) TestImageListErrorJSON() {
 	})
 
 	s.Run("error message is not empty", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text)
 	})
 }
@@ -251,7 +251,7 @@ func (s *JSONOutputSuite) TestNetworkListJSON() {
 	})
 
 	s.Run("returns valid JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		var networks []map[string]interface{}
 		s.Require().NoError(json.Unmarshal([]byte(text), &networks), "output should be valid JSON array")
@@ -290,7 +290,7 @@ func (s *JSONOutputSuite) TestNetworkListEmptyJSON() {
 	})
 
 	s.Run("returns empty JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.JSONEq(`[]`, text)
 	})
 }
@@ -307,7 +307,7 @@ func (s *JSONOutputSuite) TestNetworkListErrorJSON() {
 	})
 
 	s.Run("error message is not empty", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text)
 	})
 }
@@ -336,7 +336,7 @@ func (s *JSONOutputSuite) TestVolumeListJSON() {
 	})
 
 	s.Run("returns valid JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		var volumes []map[string]interface{}
 		s.Require().NoError(json.Unmarshal([]byte(text), &volumes), "output should be valid JSON array")
@@ -375,7 +375,7 @@ func (s *JSONOutputSuite) TestVolumeListEmptyJSON() {
 	})
 
 	s.Run("returns empty JSON array", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.JSONEq(`[]`, text)
 	})
 }
@@ -392,7 +392,7 @@ func (s *JSONOutputSuite) TestVolumeListErrorJSON() {
 	})
 
 	s.Run("error message is not empty", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text)
 	})
 }

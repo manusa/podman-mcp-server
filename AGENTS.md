@@ -215,7 +215,7 @@ package mcp_test
 import (
     "testing"
 
-    "github.com/mark3labs/mcp-go/mcp"
+    "github.com/modelcontextprotocol/go-sdk/mcp"
     "github.com/stretchr/testify/suite"
 
     "github.com/manusa/podman-mcp-server/internal/test"
@@ -250,7 +250,7 @@ func (s *ContainerToolsSuite) TestContainerList() {
     })
 
     s.Run("returns container data", func() {
-        text := toolResult.Content[0].(mcp.TextContent).Text
+        text := toolResult.Content[0].(*mcp.TextContent).Text
         s.Contains(text, "test-container")
     })
 
@@ -382,8 +382,7 @@ When adding tests:
 When introducing new modules run `make tidy` so that `go.mod` and `go.sum` remain tidy.
 
 Key dependencies:
-- **`github.com/modelcontextprotocol/go-sdk`** - Official MCP Go SDK for production server
-- **`github.com/mark3labs/mcp-go`** - Used for test client (SSE transport)
+- **`github.com/modelcontextprotocol/go-sdk`** - Official MCP Go SDK for production server and test client
 - **`github.com/spf13/cobra`** - CLI framework
 - **`github.com/spf13/viper`** - Configuration management
 - **`github.com/stretchr/testify`** - Testing framework with suite support

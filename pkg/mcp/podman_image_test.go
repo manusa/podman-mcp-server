@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
@@ -60,7 +60,7 @@ func (s *ImageSuite) TestImageList() {
 	})
 
 	s.Run("returns image data with expected format", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		expectedHeaders := regexp.MustCompile(`(?m)^REPOSITORY\s+TAG\s+DIGEST\s+IMAGE ID\s+CREATED\s+SIZE\s*$`)
 		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
@@ -85,7 +85,7 @@ func (s *ImageSuite) TestImageListEmpty() {
 	})
 
 	s.Run("returns empty or headers-only output", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		// Some podman versions print headers even when empty, others don't
 		// Just verify no image data is present
 		s.NotContains(text, "nginx", "should not contain image data")
@@ -103,7 +103,7 @@ func (s *ImageSuite) TestImagePull() {
 		toolResult, err := s.CallTool("image_pull", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "imageName", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -117,7 +117,7 @@ func (s *ImageSuite) TestImagePull() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -148,7 +148,7 @@ func (s *ImageSuite) TestImagePull() {
 		})
 
 		s.Run("returns success message with docker.io prefix", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "docker.io/nginx", "should contain the docker.io prefixed image name")
 			s.Contains(text, "pulled successfully", "should indicate success")
 		})
@@ -167,7 +167,7 @@ func (s *ImageSuite) TestImagePull() {
 		})
 
 		s.Run("returns success message", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "nginx", "should contain image name")
 			s.Contains(text, "pulled successfully", "should indicate success")
 		})
@@ -183,7 +183,7 @@ func (s *ImageSuite) TestImagePush() {
 		toolResult, err := s.CallTool("image_push", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "imageName", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -197,7 +197,7 @@ func (s *ImageSuite) TestImagePush() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -223,7 +223,7 @@ func (s *ImageSuite) TestImagePush() {
 		})
 
 		s.Run("returns success message", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "pushed successfully", "should indicate success")
 		})
 
@@ -238,7 +238,7 @@ func (s *ImageSuite) TestImageRemove() {
 		toolResult, err := s.CallTool("image_remove", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "imageName", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -252,7 +252,7 @@ func (s *ImageSuite) TestImageRemove() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -278,7 +278,7 @@ func (s *ImageSuite) TestImageRemove() {
 		})
 
 		s.Run("returns success response", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.NotEmpty(text, "should have output")
 		})
 
@@ -293,7 +293,7 @@ func (s *ImageSuite) TestImageBuild() {
 		toolResult, err := s.CallTool("image_build", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "containerFile", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -304,7 +304,7 @@ func (s *ImageSuite) TestImageBuild() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 

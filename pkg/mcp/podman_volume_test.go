@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
@@ -54,7 +54,7 @@ func (s *VolumeSuite) TestVolumeList() {
 	})
 
 	s.Run("returns volume data with expected format", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		expectedHeaders := regexp.MustCompile(`(?m)^DRIVER\s+VOLUME NAME\s*$`)
 		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
@@ -80,7 +80,7 @@ func (s *VolumeSuite) TestVolumeListEmpty() {
 	})
 
 	s.Run("returns empty or headers-only output", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		// Some podman versions print headers even when empty, others don't
 		// Just verify no volume data is present
 		s.NotContains(text, "my-volume", "should not contain volume data")

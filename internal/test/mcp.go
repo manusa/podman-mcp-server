@@ -10,8 +10,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/client"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/pkg/config"
@@ -47,7 +46,8 @@ type McpSuite struct {
 	MockServer    *MockPodmanServer
 	mcpServer     *mcpServer.Server
 	mcpHttpServer *httptest.Server
-	mcpClient     *client.Client
+	mcpClient     *mcp.Client
+	mcpSession    *mcp.ClientSession
 }
 
 // SetupTest initializes the mock server, MCP server, and client before each test.
@@ -86,25 +86,17 @@ func (s *McpSuite) SetupTest() {
 	streamableHandler := s.mcpServer.ServeStreamableHTTP()
 	s.mcpHttpServer = httptest.NewServer(streamableHandler)
 
-	// Create MCP client
-	s.mcpClient, err = client.NewStreamableHttpClient(s.mcpHttpServer.URL)
-	s.Require().NoError(err)
-
-	err = s.mcpClient.Start(s.T().Context())
-	s.Require().NoError(err)
-
-	// Initialize MCP protocol
-	initRequest := mcp.InitializeRequest{}
-	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
-	initRequest.Params.ClientInfo = mcp.Implementation{Name: "test", Version: "1.33.7"}
-	_, err = s.mcpClient.Initialize(s.T().Context(), initRequest)
+	// Create MCP client and connect
+	s.mcpClient = mcp.NewClient(&mcp.Implementation{Name: "test", Version: "1.33.7"}, nil)
+	transport := &mcp.StreamableClientTransport{Endpoint: s.mcpHttpServer.URL}
+	s.mcpSession, err = s.mcpClient.Connect(s.T().Context(), transport, nil)
 	s.Require().NoError(err)
 }
 
 // TearDownTest cleans up resources after each test.
 func (s *McpSuite) TearDownTest() {
-	if s.mcpClient != nil {
-		_ = s.mcpClient.Close()
+	if s.mcpSession != nil {
+		_ = s.mcpSession.Close()
 	}
 	if s.mcpHttpServer != nil {
 		s.mcpHttpServer.Close()
@@ -117,10 +109,10 @@ func (s *McpSuite) TearDownTest() {
 
 // CallTool calls an MCP tool by name with the given arguments.
 func (s *McpSuite) CallTool(name string, args map[string]interface{}) (*mcp.CallToolResult, error) {
-	callToolRequest := mcp.CallToolRequest{}
-	callToolRequest.Params.Name = name
-	callToolRequest.Params.Arguments = args
-	return s.mcpClient.CallTool(s.T().Context(), callToolRequest)
+	return s.mcpSession.CallTool(s.T().Context(), &mcp.CallToolParams{
+		Name:      name,
+		Arguments: args,
+	})
 }
 
 // CallToolRawResponse represents the raw JSON-RPC response from the server.
@@ -147,11 +139,11 @@ type CallToolRawResponse struct {
 // This bypasses the typed client and allows testing with malformed arguments.
 // It handles the Streamable HTTP protocol including session initialization.
 func (s *McpSuite) CallToolRaw(name string, argumentsJSON string) (*CallToolRawResponse, error) {
-	// First, initialize the session using the same protocol version as the typed client
-	initBody := fmt.Sprintf(
-		`{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"%s","clientInfo":{"name":"test","version":"1.0"}}}`,
-		mcp.LATEST_PROTOCOL_VERSION,
-	)
+	// First, initialize the session with the protocol version matching the go-sdk's latest.
+	// The go-sdk doesn't export its protocol version constant, so we hardcode it here.
+	// Update this value when upgrading the go-sdk to a version with a newer protocol.
+	const protocolVersion = "2025-06-18"
+	initBody := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"` + protocolVersion + `","clientInfo":{"name":"test","version":"1.0"}}}`
 
 	initReq, err := http.NewRequest("POST", s.mcpHttpServer.URL, strings.NewReader(initBody))
 	if err != nil {
@@ -214,7 +206,7 @@ func (s *McpSuite) CallToolRaw(name string, argumentsJSON string) (*CallToolRawR
 
 // ListTools returns the list of available MCP tools.
 func (s *McpSuite) ListTools() (*mcp.ListToolsResult, error) {
-	return s.mcpClient.ListTools(s.T().Context(), mcp.ListToolsRequest{})
+	return s.mcpSession.ListTools(s.T().Context(), &mcp.ListToolsParams{})
 }
 
 // WithContainerList sets up the mock server to return a list of containers.

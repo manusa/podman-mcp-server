@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/manusa/podman-mcp-server/internal/test"
@@ -64,7 +64,7 @@ func (s *ContainerSuite) TestContainerList() {
 	})
 
 	s.Run("returns container data with expected format", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 
 		expectedHeaders := regexp.MustCompile(`(?m)^CONTAINER ID\s+IMAGE\s+COMMAND\s+CREATED\s+STATUS\s+PORTS\s+NAMES\s*$`)
 		s.Regexpf(expectedHeaders, text, "expected headers not found in output:\n%s", text)
@@ -94,7 +94,7 @@ func (s *ContainerSuite) TestContainerListEmpty() {
 	})
 
 	s.Run("returns empty or headers-only output", func() {
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotContains(text, "test-container", "should not contain container data")
 	})
 }
@@ -104,7 +104,7 @@ func (s *ContainerSuite) TestContainerInspect() {
 		toolResult, err := s.CallTool("container_inspect", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "name", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -115,7 +115,7 @@ func (s *ContainerSuite) TestContainerInspect() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "name", "error should mention the parameter")
 		s.Contains(text, "must be a string", "error should indicate parameter must be a string")
 	})
@@ -129,7 +129,7 @@ func (s *ContainerSuite) TestContainerInspect() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -162,7 +162,7 @@ func (s *ContainerSuite) TestContainerInspect() {
 		})
 
 		s.Run("returns container details with expected format", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "abc123def456", "should contain container ID")
 			s.Contains(text, "nginx", "should contain image name")
 			s.Contains(text, "running", "should contain container state")
@@ -179,7 +179,7 @@ func (s *ContainerSuite) TestContainerStop() {
 		toolResult, err := s.CallTool("container_stop", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "name", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -193,7 +193,7 @@ func (s *ContainerSuite) TestContainerStop() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -228,7 +228,7 @@ func (s *ContainerSuite) TestContainerStop() {
 		})
 
 		s.Run("returns success response with container name", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "test-container", "should contain the stopped container name")
 		})
 
@@ -243,7 +243,7 @@ func (s *ContainerSuite) TestContainerRemove() {
 		toolResult, err := s.CallTool("container_remove", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "name", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -257,7 +257,7 @@ func (s *ContainerSuite) TestContainerRemove() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -292,7 +292,7 @@ func (s *ContainerSuite) TestContainerRemove() {
 		})
 
 		s.Run("returns success response with container name", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "test-container", "should contain the removed container name")
 		})
 
@@ -307,7 +307,7 @@ func (s *ContainerSuite) TestContainerRun() {
 		toolResult, err := s.CallTool("container_run", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "imageName", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -321,7 +321,7 @@ func (s *ContainerSuite) TestContainerRun() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -392,7 +392,7 @@ func (s *ContainerSuite) TestContainerRun() {
 		})
 
 		s.Run("returns container ID", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "container-shortname", "should contain the container ID")
 		})
 	})
@@ -410,7 +410,7 @@ func (s *ContainerSuite) TestContainerRun() {
 		})
 
 		s.Run("returns container ID", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "container123")
 		})
 
@@ -494,7 +494,7 @@ func (s *ContainerLogsSuite) TestContainerLogs() {
 		toolResult, err := s.CallTool("container_logs", map[string]interface{}{})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.Contains(text, "name", "error should mention the missing parameter")
 		s.Contains(text, "required", "error should indicate parameter is required")
 	})
@@ -508,7 +508,7 @@ func (s *ContainerLogsSuite) TestContainerLogs() {
 		})
 		s.NoError(err)
 		s.True(toolResult.IsError, "tool result should indicate an error")
-		text := toolResult.Content[0].(mcp.TextContent).Text
+		text := toolResult.Content[0].(*mcp.TextContent).Text
 		s.NotEmpty(text, "error message should not be empty")
 	})
 
@@ -538,7 +538,7 @@ func (s *ContainerLogsSuite) TestContainerLogs() {
 		})
 
 		s.Run("returns log content with expected format", func() {
-			text := toolResult.Content[0].(mcp.TextContent).Text
+			text := toolResult.Content[0].(*mcp.TextContent).Text
 			s.Contains(text, "Starting nginx", "should contain first log line")
 			s.Contains(text, "nginx started successfully", "should contain second log line")
 			s.Less(
