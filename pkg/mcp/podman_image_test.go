@@ -74,6 +74,85 @@ func (s *ImageSuite) TestImageList() {
 	})
 }
 
+func (s *ImageSuite) TestImageListFormattingEdgeCases() {
+	s.WithImageList([]test.ImageListResponse{
+		{
+			ID:       "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+			RepoTags: []string{"dangling-image"},
+			Digest:   "sha256:a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+			Created:  1704067200,
+			Size:     85000000,
+		},
+		{
+			ID:       "sha256:f1e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b3a4f5e6d7c8b9a0f1e2",
+			RepoTags: []string{"docker.io/library/nginx:latest"},
+			Digest:   "sha256:f1e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6",
+			Created:  1704067200,
+			Size:     142000000,
+		},
+	})
+
+	toolResult, err := s.CallTool("image_list", map[string]interface{}{})
+
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+
+	// Image IDs are truncated to 12 chars (after stripping sha256: for the API
+	// impl). The CLI includes the sha256: prefix. Both impls truncate.
+	// We don't assert absence of the full hash because the Digest column may
+	// contain it.
+	s.Run("truncates long image IDs", func() {
+		text := toolResult.Content[0].(*mcp.TextContent).Text
+		s.Contains(text, "a1b2c3d4e5f6", "should contain truncated first image ID")
+		s.Contains(text, "f1e2d3c4b5a6", "should contain truncated second image ID")
+	})
+
+	s.Run("handles RepoTag without colon", func() {
+		text := toolResult.Content[0].(*mcp.TextContent).Text
+		s.Contains(text, "dangling-image", "should contain the tag-less image name")
+	})
+
+	s.Run("returns image data", func() {
+		text := toolResult.Content[0].(*mcp.TextContent).Text
+		s.Contains(text, "nginx", "should contain nginx image")
+	})
+}
+
+func (s *ImageSuite) TestImageListWithNamesOnly() {
+	s.WithImageList([]test.ImageListResponse{
+		{
+			ID:      "sha256:abc123def456",
+			Names:   []string{"localhost/my-local-image:v1.0"},
+			Created: 1704067200,
+			Size:    85000000,
+		},
+		{
+			ID:      "sha256:xyz789ghi012",
+			Names:   []string{"localhost/another-image"},
+			Created: 1704067200,
+			Size:    42000000,
+		},
+	})
+
+	toolResult, err := s.CallTool("image_list", map[string]interface{}{})
+
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+
+	// The Names fallback (images with Names but no RepoTags) is only used by
+	// the API implementation's formatImageList. The CLI always renders <none>
+	// for images without RepoTags regardless of Names.
+	s.Run("returns image data", func() {
+		text := toolResult.Content[0].(*mcp.TextContent).Text
+		s.Contains(text, "abc12", "should contain first image ID")
+		s.Contains(text, "xyz78", "should contain second image ID")
+	})
+}
+
 func (s *ImageSuite) TestImageListEmpty() {
 	s.WithImageList([]test.ImageListResponse{})
 

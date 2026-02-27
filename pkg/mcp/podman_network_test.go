@@ -77,6 +77,50 @@ func (s *NetworkSuite) TestNetworkList() {
 	})
 }
 
+func (s *NetworkSuite) TestNetworkListWithLongIds() {
+	s.WithNetworkList([]test.NetworkListResponse{
+		{
+			Name:   "podman",
+			ID:     "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+			Driver: "bridge",
+			Scope:  "local",
+			Subnets: []test.Subnet{
+				{Subnet: "10.88.0.0/16", Gateway: "10.88.0.1"},
+			},
+			DNSEnabled: true,
+		},
+		{
+			Name:   "custom-net",
+			ID:     "f1e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b3a4f5e6d7c8b9a0f1e2",
+			Driver: "bridge",
+			Scope:  "local",
+			Subnets: []test.Subnet{
+				{Subnet: "10.89.0.0/24", Gateway: "10.89.0.1"},
+			},
+			DNSEnabled: true,
+		},
+	})
+
+	toolResult, err := s.CallTool("network_list", map[string]interface{}{})
+
+	s.Run("returns OK", func() {
+		s.NoError(err)
+		s.False(toolResult.IsError)
+	})
+
+	s.Run("truncates long network IDs", func() {
+		text := toolResult.Content[0].(*mcp.TextContent).Text
+		s.Contains(text, "a1b2c3d4e5f6", "should contain truncated network ID")
+		s.NotContains(text, "a1b2c3d4e5f6a7b8", "should not contain full ID beyond 12 chars")
+	})
+
+	s.Run("returns network data", func() {
+		text := toolResult.Content[0].(*mcp.TextContent).Text
+		s.Contains(text, "podman", "should contain podman network")
+		s.Contains(text, "custom-net", "should contain custom network")
+	})
+}
+
 func (s *NetworkSuite) TestNetworkListEmpty() {
 	s.WithNetworkList([]test.NetworkListResponse{})
 
