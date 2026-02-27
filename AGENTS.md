@@ -14,7 +14,7 @@ This MCP server enables AI assistants (like Claude, Gemini, Cursor, and others) 
     - `api/` - SDK-agnostic types for tool definitions (`ServerTool`, `ToolHandlerFunc`, `ToolHandlerParams`).
     - `config/` - Server configuration (`Config` struct, defaults, and override merging).
     - `mcp/` - Model Context Protocol (MCP) server implementation using the official Go SDK, with tool definitions for containers, images, networks, and volumes.
-    - `podman/` - Podman/Docker CLI abstraction layer with interface definition and CLI implementation.
+    - `podman/` - Podman/Docker abstraction layer with interface definition, implementation registry, CLI and REST API implementations.
     - `podman-mcp-server/cmd/` - CLI command definition using Cobra framework.
     - `version/` - Version information management.
   - `internal/test/` – shared test utilities (McpSuite, mock Podman API server).
@@ -89,11 +89,17 @@ This design allows tool definitions to be written without depending on any speci
 ### Podman Interface
 
 The `pkg/podman/interface.go` file defines the `Podman` interface that abstracts container runtime operations.
-The `pkg/podman/podman_cli.go` file implements this interface using the Podman/Docker CLI.
+A registry pattern in `pkg/podman/registry.go` enables multiple implementations with auto-detection.
+
+Available implementations:
+- **`cli`** (`pkg/podman/podman_cli.go`) - Uses Podman/Docker CLI commands (priority: 50). Available when `podman` or `docker` binary is in PATH.
+- **`api`** (`pkg/podman/podman_api.go`) - Uses Podman REST API via Unix socket with `pkg/bindings` (priority: 100). Available when a Podman socket is detected and responds to ping. Can be excluded from builds with the `exclude_podman_api` build tag.
+
+Socket detection (`pkg/podman/socket.go`) checks these locations in order: `CONTAINER_HOST` env var, `/run/podman/podman.sock`, `$XDG_RUNTIME_DIR/podman/podman.sock`, `/run/user/<UID>/podman/podman.sock`.
 
 When adding new container operations:
 1. Add the method signature to the `Podman` interface in `interface.go`.
-2. Implement the method in `podman_cli.go`.
+2. Implement the method in both `podman_cli.go` and `podman_api.go`.
 3. The CLI implementation handles both Podman and Docker binaries.
 
 ## Building
@@ -285,8 +291,8 @@ func TestContainerSuiteWithAllImplementations(t *testing.T) {
 ```
 
 Currently available implementations:
-- `"cli"` - Uses podman/docker CLI (default)
-- `"api"` - Uses Podman REST API via Unix socket (future)
+- `"cli"` - Uses podman/docker CLI (default for tests, priority 50)
+- `"api"` - Uses Podman REST API via Unix socket (priority 100)
 
 Key patterns:
 - Embed `test.McpSuite` for MCP server/client setup
@@ -383,6 +389,7 @@ When introducing new modules run `make tidy` so that `go.mod` and `go.sum` remai
 
 Key dependencies:
 - **`github.com/modelcontextprotocol/go-sdk`** - Official MCP Go SDK for production server and test client
+- **`github.com/containers/podman/v5`** - Official Podman Go bindings for REST API implementation
 - **`github.com/spf13/cobra`** - CLI framework
 - **`github.com/spf13/viper`** - Configuration management
 - **`github.com/stretchr/testify`** - Testing framework with suite support
@@ -603,8 +610,8 @@ Specs serve as the authoritative reference for:
 
 | Feature | Spec | Status | Covers |
 |---------|------|--------|--------|
-| Podman Interface | `docs/specs/podman-interface.md` | Planned | `Podman` interface definition, implementation registry, `--podman-impl` flag |
-| Podman REST API Bindings | `docs/specs/podman-rest-api-bindings.md` | Planned | `api` implementation using `pkg/bindings` via Unix socket |
+| Podman Interface | `docs/specs/podman-interface.md` | Implemented | `Podman` interface definition, implementation registry, `--podman-impl` flag |
+| Podman REST API Bindings | `docs/specs/podman-rest-api-bindings.md` | Implemented | `api` implementation using `pkg/bindings` via Unix socket |
 
 ## Relationship to kubernetes-mcp-server
 

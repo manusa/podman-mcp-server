@@ -114,6 +114,30 @@ podman-mcp-server --port 8080
 podman-mcp-server --sse-port 8080
 ```
 
+### Podman Implementations
+
+The server supports multiple Podman backend implementations:
+
+| Implementation | Description | Priority |
+|----------------|-------------|----------|
+| `api` | Podman REST API via Unix socket | 100 (preferred) |
+| `cli` | Podman/Docker CLI wrapper | 50 (fallback) |
+
+By default, the server **auto-detects** the best available implementation.
+The `api` implementation is preferred when a Podman socket is available, otherwise the `cli` implementation is used as a fallback.
+
+Use the `--podman-impl` flag to force a specific implementation:
+
+```shell
+# Force CLI implementation
+podman-mcp-server --podman-impl=cli
+
+# Force API implementation (requires Podman socket)
+podman-mcp-server --podman-impl=api
+```
+
+The `api` implementation communicates directly with the Podman REST API via Unix socket, while the `cli` implementation shells out to the `podman` or `docker` binary.
+
 ## 🛠️ Tools <a id="tools"></a>
 
 <!-- AVAILABLE-TOOLS-START -->
