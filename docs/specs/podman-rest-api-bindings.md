@@ -6,7 +6,7 @@ An implementation of the [`Podman` interface](./podman-interface.md) that uses t
 
 ## Status
 
-**Not yet implemented.** See [Implementation Plan](#implementation-plan) for phased rollout.
+**Implemented.** All 13 `Podman` interface methods are implemented via the API backend using `pkg/bindings`.
 
 ## Requirements
 
@@ -188,8 +188,8 @@ require github.com/containers/podman/v5 v5.x.x
 
 | Component | Location |
 |-----------|----------|
-| API implementation | `pkg/podman/podman_api.go` (new) |
-| Socket detection | `pkg/podman/socket.go` (new) |
+| API implementation | `pkg/podman/podman_api.go` |
+| Socket detection | `pkg/podman/socket.go` |
 | Test infrastructure | `internal/test/mcp.go` |
 
 ## Related Specs
@@ -197,141 +197,6 @@ require github.com/containers/podman/v5 v5.x.x
 | Spec | Relationship |
 |------|--------------|
 | [Podman Interface](./podman-interface.md) | Defines the interface and registry this implementation uses |
-
----
-
-## Implementation Plan
-
-> **IMPORTANT - Ephemeral Section**
->
-> This section tracks implementation progress and will be **deleted once implementation is complete**.
->
-> **Maintainer Instructions:**
-> - Update "Current State" after completing each phase
-> - Keep both this spec and [podman-interface.md](./podman-interface.md) synchronized with implementation changes
-> - Once Phase 4 is complete and verified, remove this entire "Implementation Plan" section
-
-### Current State
-
-**Phase: 3 (Write Operations) - Complete**
-
-All 13 `Podman` interface methods are now implemented via the API backend:
-- Read-only methods: `ContainerList()`, `ContainerInspect()`, `ContainerLogs()`, `ImageList()`, `NetworkList()`, `VolumeList()`
-- Write methods: `ContainerStop()`, `ContainerRemove()`, `ContainerRun()`, `ImagePull()`, `ImagePush()`, `ImageRemove()`, `ImageBuild()`
-- Short-name image resolution with docker.io/ prefix fallback (shared `pullImageWithShortNameRetry` helper)
-- All MCP tool tests run against both CLI and API implementations
-- Test infrastructure updated with API-compatible mock handlers
-
-### Phase 0: Test Infrastructure Enhancement ✓
-
-**Goal:** Enable testing multiple implementations through the same test suites.
-
-**Spec:** This phase primarily affects test infrastructure, prerequisites for both specs.
-
-**Status: COMPLETE**
-
-1. ✓ Updated `McpSuite` in `internal/test/mcp.go`:
-   - Added `PodmanImpl string` field
-   - Added mechanism to override implementation at test time
-   - Mock server works for both CLI and API patterns
-
-2. ✓ Refactored infrastructure for parameterized tests:
-   - Added `AvailableImplementations()` helper function
-   - Added `DefaultImplementation()` helper function
-   - Existing CLI tests continue to pass
-
-**Deliverable:** Test infrastructure ready for multi-implementation testing.
-
-### Phase 1: Implementation Registry ✓
-
-**Goal:** Add registry pattern per [podman-interface.md](./podman-interface.md).
-
-**Spec:** [Podman Interface](./podman-interface.md)
-
-**Status: COMPLETE**
-
-1. ✓ Created `pkg/podman/registry.go` with:
-   - `Implementation` interface (`Name()`, `Description()`, `Available()`, `Priority()`)
-   - `Register()`, `Implementations()`, `ImplementationNames()`, `ImplementationFromString()`
-   - `Clear()` for testing
-   - Error types: `ErrNoImplementationAvailable`, `ErrImplementationNotAvailable`
-
-2. ✓ Refactored existing CLI implementation to use registry:
-   - Added `Name()`, `Description()`, `Available()`, `Priority()` methods
-   - Registered via `init()` function with priority 50
-
-3. ✓ Updated `NewPodman()` in `interface.go`:
-   - Uses registry for implementation selection
-   - Auto-detects by priority when no override specified
-   - Returns specific error types for different failure modes
-
-4. ✓ Added `--podman-impl` CLI flag with dynamic help text listing implementations
-
-**Deliverable:** Registry pattern works, CLI implementation registered, flag available.
-
-### Phase 2: Socket Detection and API Implementation (Read-Only) ✓
-
-**Goal:** Add socket detection and implement read-only API operations.
-
-**Spec:** This spec (Podman REST API Bindings)
-
-**Status: COMPLETE**
-
-1. ✓ Created `pkg/podman/socket.go` with:
-   - `DetectSocket() (string, error)`
-   - `PingSocket(socketPath string) error`
-   - Unit tests in `pkg/podman/socket_test.go`
-
-2. ✓ Added `github.com/containers/podman/v5` dependency
-
-3. ✓ Created `pkg/podman/podman_api.go` with:
-   - `podmanApi` struct implementing `Implementation`
-   - Read-only methods: `ContainerList()`, `ContainerInspect()`, `ContainerLogs()`, `ImageList()`, `NetworkList()`, `VolumeList()`
-   - Registered via `init()` with priority 100
-
-4. ✓ Updated test infrastructure to default to CLI for mock server compatibility
-
-**Deliverable:** Read-only operations work via API when socket available.
-
-### Phase 3: API Implementation (Write Operations) ✓
-
-**Goal:** Implement mutating operations.
-
-**Spec:** This spec (Podman REST API Bindings)
-
-**Status: COMPLETE**
-
-1. ✓ Added remaining methods to `podmanApi`:
-   - `ContainerRun(...)`, `ContainerStop()`, `ContainerRemove()`
-   - `ImagePull()`, `ImagePush()`, `ImageRemove()`, `ImageBuild()`
-
-2. ✓ Handled short-name image resolution (docker.io prefix fallback via `pullImageWithShortNameRetry`)
-
-3. ✓ Merged write test suites into all-implementations runners (CLI + API)
-
-4. ✓ Updated mock handlers for API binding compatibility (`Images` field, hex build IDs)
-
-**Deliverable:** Full API implementation complete.
-
-### Phase 4: Documentation and Finalization
-
-**Goal:** Complete documentation and clean up.
-
-**Specs:** Both specs
-
-1. Update documentation:
-   - README.md with `--podman-impl` flag
-   - AGENTS.md Podman Interface section
-
-2. Update spec statuses from "Not yet implemented" to implemented
-
-3. Update AGENTS.md spec table statuses from "Planned" to "Implemented"
-
-4. **Delete this Implementation Plan section from both specs**
-
-5. Update build system if needed for `remote` tag
-
-**Deliverable:** Feature complete, documented, specs finalized.
 
 ---
 
