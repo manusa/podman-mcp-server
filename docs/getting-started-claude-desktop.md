@@ -1,6 +1,6 @@
 # Using with Claude Desktop
 
-Configure the Podman MCP Server with Claude Desktop.
+Configure the Podman MCP Server with [Claude Desktop](https://claude.ai/download). Claude Desktop is available for macOS and Windows. Linux users should use [Claude Code CLI](getting-started-claude-code.md) instead.
 
 ## Config File Location
 
@@ -10,18 +10,10 @@ The `claude_desktop_config.json` file location varies by operating system:
 | ----------- | ---------------------------------------------------------------------------------------------- |
 | **macOS**   | `~/Library/Application Support/Claude/claude_desktop_config.json`                              |
 | **Windows** | `%APPDATA%\Claude\claude_desktop_config.json` (e.g. `C:\Users\<user>\AppData\Roaming\Claude\`) |
-| **Linux**   | `~/.config/Claude/claude_desktop_config.json`                                                  |
 
 ### Opening the Config File
 
-**Via Claude Desktop (macOS/Windows):** Claude menu → Settings → Developer → Edit Config. This creates the file if it doesn't exist.
-
-**Manually:** Open the path above in your editor. On Linux, you may need to create the file and directory first:
-
-```bash
-mkdir -p ~/.config/Claude
-nano ~/.config/Claude/claude_desktop_config.json
-```
+Claude menu → Settings... → Developer → Edit Config. This creates the file if it doesn't exist.
 
 ## Installation
 
@@ -67,7 +59,7 @@ If you have Python installed instead of Node.js:
 
 If you prefer not to use npm, download the binary for your platform and configure the path:
 
-**macOS/Linux:**
+**macOS:**
 
 ```json
 {
@@ -94,13 +86,13 @@ If you prefer not to use npm, download the binary for your platform and configur
 ## Verifying
 
 1. **Restart Claude Desktop completely** (closing the window is not enough).
-2. Look for the 🔨 hammer icon in the bottom-right of the chat input — this indicates MCP servers are loaded.
-3. Click the icon to see available tools, including Podman tools.
+2. Look for the MCP server indicator in the bottom-right of the chat input — this indicates MCP servers are loaded.
+3. Click the indicator to see available tools, including Podman tools.
 4. Ask Claude to list containers, pull images, or run containers.
 
 ## Troubleshooting
 
-- **Server not showing / hammer icon missing:** Check [Claude Desktop logs](https://modelcontextprotocol.io/docs/develop/connect-local-servers#getting-logs-from-claude-for-desktop): `mcp.log` and `mcp-server-podman.log` in `~/Library/Logs/Claude` (macOS) or `%APPDATA%\Claude\logs` (Windows). On Linux, look for logs in `~/.config/Claude/` or use Settings → Developer → Open Logs Folder if available.
+- **Server not showing:** Check [Claude Desktop logs](https://modelcontextprotocol.io/docs/develop/connect-local-servers#getting-logs-from-claude-for-desktop): `mcp.log` and `mcp-server-podman.log` in `~/Library/Logs/Claude` (macOS) or `%APPDATA%\Claude\logs` (Windows).
 - **Invalid JSON:** A single trailing comma or syntax error will silently break the config. Validate your JSON.
 - **Manual test:** Run `npx -y podman-mcp-server@latest` in a terminal to verify the server starts.
 
