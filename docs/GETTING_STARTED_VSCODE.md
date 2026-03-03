@@ -1,0 +1,56 @@
+# Using with VS Code / Cursor
+
+Configure the Podman MCP Server with VS Code or Cursor.
+
+## Quick Install
+
+Click to install directly in VS Code:
+
+[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522podman%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522podman-mcp-server%2540latest%2522%255D%257D)
+[<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522podman%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522podman-mcp-server%2540latest%2522%255D%257D)
+
+## Manual Install
+
+### VS Code
+
+Run one of the following commands:
+
+```shell
+# For VS Code
+code --add-mcp '{"name":"podman","command":"npx","args":["-y","podman-mcp-server@latest"]}'
+
+# For VS Code Insiders
+code-insiders --add-mcp '{"name":"podman","command":"npx","args":["-y","podman-mcp-server@latest"]}'
+```
+
+### Cursor
+
+Cursor does not support a `--add-mcp` CLI flag. Add the server by editing your config file directly.
+
+**Global config** (available in all projects): `~/.cursor/mcp.json`
+
+**Project config** (current project only): `.cursor/mcp.json` in your project root
+
+Add the following entry:
+
+```json
+{
+  "mcpServers": {
+    "podman": {
+      "command": "npx",
+      "args": ["-y", "podman-mcp-server@latest"]
+    }
+  }
+}
+```
+
+Alternatively, go to **Cursor Settings → Tools & Integrations → New MCP Server** to configure via the UI.
+
+## Requirements
+
+- [Node.js](https://nodejs.org/) (for `npx`) or the [standalone binary](https://github.com/manusa/podman-mcp-server/releases/latest)
+- Podman or Docker installed and running (see [Getting Started with Podman/Docker](GETTING_STARTED_PODMAN.md))
+
+## Verifying
+
+After installation, the Podman MCP server tools should be available in your AI chat. Try asking to list containers or images.

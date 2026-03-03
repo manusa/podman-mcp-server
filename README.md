@@ -6,7 +6,7 @@
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/manusa/podman-mcp-server?sort=semver)](https://github.com/manusa/podman-mcp-server/releases/latest)
 [![Build](https://github.com/manusa/podman-mcp-server/actions/workflows/build.yaml/badge.svg)](https://github.com/manusa/podman-mcp-server/actions/workflows/build.yaml)
 
-[✨ Features](#features) | [🚀 Getting Started](#getting-started) | [🎥 Demos](#demos) | [⚙️ Configuration](#configuration) | [🛠️ Tools](#tools) | [🧑‍💻 Development](#development)
+[✨ Features](#features) | [🚀 Getting Started](#getting-started) | [📚 Documentation](#documentation) | [🎥 Demos](#demos) | [⚙️ Configuration](#configuration) | [🛠️ Tools](#tools) | [🧑‍💻 Development](#development)
 
 ## ✨ Features <a id="features"></a>
 
@@ -69,6 +69,10 @@ extensions:
       - podman-mcp-server@latest
 
 ```
+
+## 📚 Documentation <a id="documentation"></a>
+
+For detailed setup guides, configuration reference, and feature specifications, see the **[Documentation](docs/README.md)**.
 
 ## 🎥 Demos <a id="demos"></a>
 
