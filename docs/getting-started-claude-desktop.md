@@ -41,10 +41,27 @@ Add the Podman MCP server to your `claude_desktop_config.json`:
 }
 ```
 
+### Alternative: Using uvx
+
+If you have Python installed instead of Node.js:
+
+```json
+{
+  "mcpServers": {
+    "podman": {
+      "command": "uvx",
+      "args": [
+        "podman-mcp-server@latest"
+      ]
+    }
+  }
+}
+```
+
 ## Requirements
 
-- [Node.js](https://nodejs.org/) (for `npx`) or the [standalone binary](https://github.com/manusa/podman-mcp-server/releases/latest)
-- Podman or Docker installed and running (see [Getting Started with Podman/Docker](GETTING_STARTED_PODMAN.md))
+- [Node.js](https://nodejs.org/) (for `npx`) or [Python](https://www.python.org/) (for `uvx`) or the [standalone binary](https://github.com/manusa/podman-mcp-server/releases/latest)
+- Podman or Docker installed and running (see [Getting Started with Podman/Docker](getting-started-podman.md))
 
 ## Alternative: Standalone Binary
 

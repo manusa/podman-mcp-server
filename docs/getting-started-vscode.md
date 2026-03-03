@@ -49,7 +49,7 @@ Alternatively, go to **Cursor Settings → Tools & Integrations → New MCP Serv
 ## Requirements
 
 - [Node.js](https://nodejs.org/) (for `npx`) or the [standalone binary](https://github.com/manusa/podman-mcp-server/releases/latest)
-- Podman or Docker installed and running (see [Getting Started with Podman/Docker](GETTING_STARTED_PODMAN.md))
+- Podman or Docker installed and running (see [Getting Started with Podman/Docker](getting-started-podman.md))
 
 ## Verifying
 

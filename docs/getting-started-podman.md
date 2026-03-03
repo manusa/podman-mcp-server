@@ -35,6 +35,7 @@ The server automatically detects and uses whichever runtime (Podman or Docker) i
 
 Once your container runtime is ready, proceed to configure the MCP server with your AI assistant:
 
-- [Using with Claude Desktop](GETTING_STARTED_CLAUDE_DESKTOP.md)
-- [Using with VS Code / Cursor](GETTING_STARTED_VSCODE.md)
-- [Using with Goose CLI](GETTING_STARTED_GOOSE_CLI.md)
+- [Using with Claude Desktop](getting-started-claude-desktop.md)
+- [Using with Claude Code CLI](getting-started-claude-code.md)
+- [Using with VS Code / Cursor](getting-started-vscode.md)
+- [Using with Goose CLI](getting-started-goose-cli.md)
