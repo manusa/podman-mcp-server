@@ -1,7 +1,8 @@
 package podman
 
 import (
-	"sort"
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -19,61 +20,35 @@ type Implementation interface {
 	Initialize(config.Config) (Podman, error) // Creates and initializes a new instance
 }
 
-var (
-	implementations []Implementation
-	mu              sync.RWMutex
-)
+var implReg = &implRegistry{implementations: make(map[string]Implementation)}
 
 // Register adds an implementation to the registry.
 // Called from init() in each implementation file.
-// Implementations are stored in registration order; sorting by priority
-// happens at selection time.
+// Panics if an implementation is already registered with the given name.
 func Register(impl Implementation) {
-	mu.Lock()
-	defer mu.Unlock()
-	implementations = append(implementations, impl)
+	implReg.register(impl)
 }
 
 // Implementations returns all registered implementations.
 func Implementations() []Implementation {
-	mu.RLock()
-	defer mu.RUnlock()
-	result := make([]Implementation, len(implementations))
-	copy(result, implementations)
-	return result
+	return implReg.all()
 }
 
 // ImplementationNames returns sorted names of all registered implementations.
 func ImplementationNames() []string {
-	mu.RLock()
-	defer mu.RUnlock()
-	names := make([]string, len(implementations))
-	for i, impl := range implementations {
-		names[i] = impl.Name()
-	}
-	sort.Strings(names)
-	return names
+	return implReg.names()
 }
 
 // ImplementationFromString looks up an implementation by name.
 // Returns nil if no implementation with that name is registered.
 func ImplementationFromString(name string) Implementation {
-	mu.RLock()
-	defer mu.RUnlock()
-	for _, impl := range implementations {
-		if impl.Name() == name {
-			return impl
-		}
-	}
-	return nil
+	return implReg.get(name)
 }
 
 // Clear removes all registered implementations.
 // TESTING PURPOSES ONLY. Production code should never clear the registry.
 func Clear() {
-	mu.Lock()
-	defer mu.Unlock()
-	implementations = nil
+	implReg.clear()
 }
 
 // DefaultImplementation returns the name of the default implementation.
@@ -81,19 +56,73 @@ func Clear() {
 // when multiple implementations are available (highest priority wins).
 // Returns empty string if no implementations are registered.
 func DefaultImplementation() string {
-	mu.RLock()
-	defer mu.RUnlock()
-	if len(implementations) == 0 {
+	return implReg.defaultImpl()
+}
+
+type implRegistry struct {
+	implementations map[string]Implementation
+	mu              sync.RWMutex
+}
+
+func (r *implRegistry) register(impl Implementation) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	name := impl.Name()
+	if _, exists := r.implementations[name]; exists {
+		panic(fmt.Sprintf("implementation already registered for name '%s'", name))
+	}
+	r.implementations[name] = impl
+}
+
+func (r *implRegistry) get(name string) Implementation {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.implementations[name]
+}
+
+func (r *implRegistry) all() []Implementation {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make([]Implementation, 0, len(r.implementations))
+	for _, impl := range r.implementations {
+		result = append(result, impl)
+	}
+	slices.SortFunc(result, func(a, b Implementation) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
+	return result
+}
+
+func (r *implRegistry) names() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	names := make([]string, 0, len(r.implementations))
+	for name := range r.implementations {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+func (r *implRegistry) defaultImpl() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if len(r.implementations) == 0 {
 		return ""
 	}
-	// Find highest priority implementation
-	best := implementations[0]
-	for _, impl := range implementations[1:] {
-		if impl.Priority() > best.Priority() {
+	var best Implementation
+	for _, impl := range r.implementations {
+		if best == nil || impl.Priority() > best.Priority() {
 			best = impl
 		}
 	}
 	return best.Name()
+}
+
+func (r *implRegistry) clear() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.implementations = make(map[string]Implementation)
 }
 
 // ErrNoImplementationAvailable is returned when no implementation is available.

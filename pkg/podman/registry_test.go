@@ -116,6 +116,13 @@ func (s *RegistrySuite) TestRegister() {
 		s.NotNil(impl)
 		s.Equal("test-findable", impl.Name())
 	})
+
+	s.Run("panics on duplicate registration", func() {
+		podman.Register(&registryMockImplementation{name: "test-duplicate", priority: 1})
+		s.Panics(func() {
+			podman.Register(&registryMockImplementation{name: "test-duplicate", priority: 2})
+		})
+	})
 }
 
 func (s *RegistrySuite) TestClear() {
@@ -162,13 +169,13 @@ func (s *RegistrySuite) TestDefaultImplementation() {
 		s.Equal("high", def)
 	})
 
-	s.Run("returns first when priorities are equal", func() {
+	s.Run("returns one of the implementations when priorities are equal", func() {
 		podman.Clear()
 		podman.Register(&registryMockImplementation{name: "first", priority: 50})
 		podman.Register(&registryMockImplementation{name: "second", priority: 50})
 
 		def := podman.DefaultImplementation()
-		// When priorities are equal, the first registered wins
-		s.Equal("first", def)
+		// With equal priorities, either implementation may be returned
+		s.Contains([]string{"first", "second"}, def)
 	})
 }

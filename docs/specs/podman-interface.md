@@ -60,18 +60,19 @@ type Implementation interface {
 
 ### Implementation Registry
 
-The registry follows the pattern from [kubernetes-mcp-server/pkg/toolsets/toolsets.go](https://github.com/containers/kubernetes-mcp-server/blob/main/pkg/toolsets/toolsets.go):
+The registry follows the uniform registry pattern from [kubernetes-mcp-server](https://github.com/containers/kubernetes-mcp-server), using a map-based struct with methods:
 
 ```go
 // pkg/podman/registry.go
 
-var implementations []Implementation
+var implReg = &implRegistry{implementations: make(map[string]Implementation)}
 
 // Register adds an implementation to the registry.
 // Called from init() in each implementation file.
+// Panics if an implementation is already registered with the given name.
 func Register(impl Implementation)
 
-// Implementations returns all registered implementations.
+// Implementations returns all registered implementations sorted by name.
 func Implementations() []Implementation
 
 // ImplementationNames returns sorted names of all registered implementations.

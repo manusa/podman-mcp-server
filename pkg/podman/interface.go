@@ -1,7 +1,8 @@
 package podman
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 
 	"github.com/manusa/podman-mcp-server/pkg/config"
@@ -55,8 +56,8 @@ func NewPodman(cfg config.Config) (Podman, error) {
 
 	// Auto-detect: sort by priority (descending) and return first available
 	impls := Implementations()
-	sort.Slice(impls, func(i, j int) bool {
-		return impls[i].Priority() > impls[j].Priority()
+	slices.SortFunc(impls, func(a, b Implementation) int {
+		return cmp.Compare(b.Priority(), a.Priority())
 	})
 
 	var tried []string
