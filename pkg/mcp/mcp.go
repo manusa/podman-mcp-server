@@ -8,6 +8,7 @@ import (
 
 	"github.com/manusa/podman-mcp-server/pkg/api"
 	"github.com/manusa/podman-mcp-server/pkg/config"
+	"github.com/manusa/podman-mcp-server/pkg/output"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/manusa/podman-mcp-server/pkg/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -41,9 +42,11 @@ func NewServer(cfg config.Config) (*Server, error) {
 		return nil, err
 	}
 
+	output := output.New(cfg.OutputFormat)
+
 	// Register all tools
 	for _, tool := range AllTools() {
-		goSdkTool, handler, err := ServerToolToGoSdkTool(s.podman, tool)
+		goSdkTool, handler, err := ServerToolToGoSdkTool(s.podman, output, tool)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert tool %s: %w", tool.Tool.Name, err)
 		}
