@@ -1,12 +1,18 @@
-package mcp
+package container
 
 import (
 	"context"
 
 	"github.com/manusa/podman-mcp-server/pkg/api"
+	"github.com/manusa/podman-mcp-server/pkg/toolsets"
 )
 
-func initContainerTools() []api.ServerTool {
+type toolset struct{}
+
+func (t toolset) GetName() string        { return "container" }
+func (t toolset) GetDescription() string { return "Container management tools" }
+
+func (t toolset) GetTools() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
@@ -14,10 +20,10 @@ func initContainerTools() []api.ServerTool {
 				Description: "Displays the low-level information and configuration of a Docker or Podman container with the specified container ID or name",
 				Annotations: api.ToolAnnotations{
 					Title:           "Container: Inspect",
-					ReadOnlyHint:    ptr(true),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(true),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -38,10 +44,10 @@ func initContainerTools() []api.ServerTool {
 				Description: "Prints out information about the running Docker or Podman containers",
 				Annotations: api.ToolAnnotations{
 					Title:           "Container: List",
-					ReadOnlyHint:    ptr(true),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(true),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -55,10 +61,10 @@ func initContainerTools() []api.ServerTool {
 				Description: "Displays the logs of a Docker or Podman container with the specified container ID or name",
 				Annotations: api.ToolAnnotations{
 					Title:           "Container: Logs",
-					ReadOnlyHint:    ptr(true),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(true),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -79,10 +85,10 @@ func initContainerTools() []api.ServerTool {
 				Description: "Removes a Docker or Podman container with the specified container ID or name (rm)",
 				Annotations: api.ToolAnnotations{
 					Title:           "Container: Remove",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(true),
-					IdempotentHint:  ptr(false),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(true),
+					IdempotentHint:  api.Ptr(false),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -103,10 +109,10 @@ func initContainerTools() []api.ServerTool {
 				Description: "Runs a Docker or Podman container with the specified image name",
 				Annotations: api.ToolAnnotations{
 					Title:           "Container: Run",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(false),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(false),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -141,10 +147,10 @@ func initContainerTools() []api.ServerTool {
 				Description: "Stops a Docker or Podman running container with the specified container ID or name",
 				Annotations: api.ToolAnnotations{
 					Title:           "Container: Stop",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -160,6 +166,10 @@ func initContainerTools() []api.ServerTool {
 			Handler: containerStop,
 		},
 	}
+}
+
+func init() {
+	toolsets.Register(toolset{})
 }
 
 func containerInspect(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {

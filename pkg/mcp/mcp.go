@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"slices"
 
 	"github.com/manusa/podman-mcp-server/pkg/api"
 	"github.com/manusa/podman-mcp-server/pkg/config"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
+	"github.com/manusa/podman-mcp-server/pkg/toolsets"
 	"github.com/manusa/podman-mcp-server/pkg/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -67,12 +67,11 @@ func (s *Server) ServeSse() *mcp.SSEHandler {
 
 // AllTools returns all registered tools for documentation purposes.
 func AllTools() []api.ServerTool {
-	return slices.Concat(
-		initContainerTools(),
-		initImageTools(),
-		initNetworkTools(),
-		initVolumeTools(),
-	)
+	var all []api.ServerTool
+	for _, ts := range toolsets.Toolsets() {
+		all = append(all, ts.GetTools()...)
+	}
+	return all
 }
 
 // ServeStreamableHTTP returns an HTTP handler for Streamable HTTP transport.
