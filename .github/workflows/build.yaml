@@ -48,17 +48,29 @@ jobs:
       - name: Install Podman (macOS)
         if: runner.os == 'macOS'
         # Homebrew no longer publishes a podman bottle for the tier-3 Intel
-        # (x86_64) runner, so `brew install podman` fails there with
-        # "no bottle available". Install podman's official macOS release binary
-        # instead; it works on both amd64 and arm64 and is independent of
-        # Homebrew. Only the podman CLI is needed (tests run against a mock API
-        # server, so no podman machine is started).
+        # (x86_64) runner, so `brew install podman` fails there with "no bottle
+        # available". Install podman's official macOS release binary instead.
+        # Only the podman CLI is needed (tests run against a mock API server, so
+        # no podman machine is started).
+        #
+        # Track the latest podman release that still ships a darwin binary for
+        # the runner's arch: arm64 follows the newest release, while Intel/amd64
+        # resolves to the last release that publishes an amd64 build (podman
+        # dropped Intel macOS binaries after v5.8.x).
         env:
-          PODMAN_VERSION: v5.8.5
+          GH_TOKEN: ${{ github.token }}
         run: |
           arch=amd64
           if [ "$(uname -m)" = "arm64" ]; then arch=arm64; fi
-          url="https://github.com/containers/podman/releases/download/${PODMAN_VERSION}/podman-remote-release-darwin_${arch}.zip"
+          asset="podman-remote-release-darwin_${arch}.zip"
+          url=$(gh api 'repos/containers/podman/releases?per_page=100' \
+            --jq 'first(.[] | select(.prerelease == false and .draft == false)
+                            | .assets[] | select(.name == "'"${asset}"'")
+                            | .browser_download_url)')
+          if [ -z "${url}" ]; then
+            echo "::error::no ${asset} found in recent podman releases"; exit 1
+          fi
+          echo "Installing podman from ${url}"
           curl -fsSL -o "${RUNNER_TEMP}/podman.zip" "${url}"
           unzip -q "${RUNNER_TEMP}/podman.zip" -d "${RUNNER_TEMP}/podman"
           sudo install -m 0755 "${RUNNER_TEMP}"/podman/podman-*/usr/bin/podman /usr/local/bin/podman
