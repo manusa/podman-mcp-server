@@ -6,7 +6,7 @@ toolchain go1.25.1
 
 require (
 	github.com/containers/buildah v1.43.2
-	github.com/containers/podman/v5 v5.8.4
+	github.com/containers/podman/v5 v5.8.5
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
