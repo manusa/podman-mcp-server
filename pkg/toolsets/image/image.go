@@ -1,12 +1,18 @@
-package mcp
+package image
 
 import (
 	"context"
 
 	"github.com/manusa/podman-mcp-server/pkg/api"
+	"github.com/manusa/podman-mcp-server/pkg/toolsets"
 )
 
-func initImageTools() []api.ServerTool {
+type toolset struct{}
+
+func (t toolset) GetName() string        { return "image" }
+func (t toolset) GetDescription() string { return "Image management tools" }
+
+func (t toolset) GetTools() []api.ServerTool {
 	return []api.ServerTool{
 		{
 			Tool: api.Tool{
@@ -14,10 +20,10 @@ func initImageTools() []api.ServerTool {
 				Description: "Build a Docker or Podman image from a Dockerfile, Podmanfile, or Containerfile",
 				Annotations: api.ToolAnnotations{
 					Title:           "Image: Build",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(false),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(false),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -42,10 +48,10 @@ func initImageTools() []api.ServerTool {
 				Description: "List the Docker or Podman images on the local machine",
 				Annotations: api.ToolAnnotations{
 					Title:           "Image: List",
-					ReadOnlyHint:    ptr(true),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(true),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -59,10 +65,10 @@ func initImageTools() []api.ServerTool {
 				Description: "Copies (pulls) a Docker or Podman container image from a registry onto the local machine storage",
 				Annotations: api.ToolAnnotations{
 					Title:           "Image: Pull",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(true),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(true),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -83,10 +89,10 @@ func initImageTools() []api.ServerTool {
 				Description: "Pushes a Docker or Podman container image, manifest list or image index from local machine storage to a registry",
 				Annotations: api.ToolAnnotations{
 					Title:           "Image: Push",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(false),
-					IdempotentHint:  ptr(true),
-					OpenWorldHint:   ptr(true),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(false),
+					IdempotentHint:  api.Ptr(true),
+					OpenWorldHint:   api.Ptr(true),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -107,10 +113,10 @@ func initImageTools() []api.ServerTool {
 				Description: "Removes a Docker or Podman image from the local machine storage",
 				Annotations: api.ToolAnnotations{
 					Title:           "Image: Remove",
-					ReadOnlyHint:    ptr(false),
-					DestructiveHint: ptr(true),
-					IdempotentHint:  ptr(false),
-					OpenWorldHint:   ptr(false),
+					ReadOnlyHint:    api.Ptr(false),
+					DestructiveHint: api.Ptr(true),
+					IdempotentHint:  api.Ptr(false),
+					OpenWorldHint:   api.Ptr(false),
 				},
 				InputSchema: api.InputSchema{
 					Type: "object",
@@ -126,6 +132,10 @@ func initImageTools() []api.ServerTool {
 			Handler: imageRemove,
 		},
 	}
+}
+
+func init() {
+	toolsets.Register(toolset{})
 }
 
 func imageBuild(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {

@@ -130,8 +130,3 @@ func derefBool(ptr *bool, defaultVal bool) bool {
 	}
 	return *ptr
 }
-
-// ptr returns a pointer to the given value.
-func ptr[T any](v T) *T {
-	return &v
-}
