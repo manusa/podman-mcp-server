@@ -7,12 +7,13 @@ import (
 	"fmt"
 
 	"github.com/manusa/podman-mcp-server/pkg/api"
+	"github.com/manusa/podman-mcp-server/pkg/output"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // ServerToolToGoSdkTool converts an internal ServerTool to go-sdk format.
-func ServerToolToGoSdkTool(p podman.Podman, tool api.ServerTool) (*mcp.Tool, mcp.ToolHandler, error) {
+func ServerToolToGoSdkTool(p podman.Podman, out output.Output, tool api.ServerTool) (*mcp.Tool, mcp.ToolHandler, error) {
 	goSdkTool := &mcp.Tool{
 		Name:        tool.Tool.Name,
 		Description: tool.Tool.Description,
@@ -29,6 +30,7 @@ func ServerToolToGoSdkTool(p podman.Podman, tool api.ServerTool) (*mcp.Tool, mcp
 		params := api.ToolHandlerParams{
 			Podman:    p,
 			Arguments: arguments,
+			Output:    out,
 		}
 
 		result, err := tool.Handler(ctx, params)

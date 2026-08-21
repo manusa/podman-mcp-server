@@ -4,6 +4,7 @@ package api
 import (
 	"context"
 
+	"github.com/manusa/podman-mcp-server/pkg/output"
 	"github.com/manusa/podman-mcp-server/pkg/podman"
 )
 
@@ -20,6 +21,7 @@ type ToolHandlerFunc func(ctx context.Context, params ToolHandlerParams) (*ToolC
 type ToolHandlerParams struct {
 	Podman    podman.Podman
 	Arguments map[string]any
+	Output    output.Output
 }
 
 // Tool represents a tool definition.

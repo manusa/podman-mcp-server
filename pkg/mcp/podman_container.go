@@ -173,7 +173,11 @@ func containerInspect(_ context.Context, params api.ToolHandlerParams) (*api.Too
 
 func containerList(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	result, err := params.Podman.ContainerList()
-	return api.NewToolCallResult(result, err), nil
+	if err != nil {
+		return api.NewToolCallResult("", err), nil
+	}
+	formatted, err := params.Output.Format(result)
+	return api.NewToolCallResult(formatted, err), nil
 }
 
 func containerLogs(_ context.Context, params api.ToolHandlerParams) (*api.ToolCallResult, error) {
